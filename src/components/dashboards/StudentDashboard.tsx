@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { events as ALL_EVENTS, type CampusEvent, type EventCategory } from "@/data/events";
+import type { EventCategory } from "@/data/events";
+import type { ManagerEvent } from "@/data/managerEvents";
+import { useEvents } from "@/context/EventsContext";
 import { EventCard } from "@/components/EventCard";
 import type { DateRange } from "react-day-picker";
 
@@ -14,7 +16,7 @@ type DateFilter = "all" | "today" | "week" | "custom";
 const CATEGORIES: EventCategory[] = ["Technical", "Cultural", "Sports", "Others"];
 
 // Mock: pretend the user previously registered for these event ids. Empty = new user.
-const PAST_REGISTRATIONS: string[] = ["1", "5"];
+const PAST_REGISTRATIONS: string[] = ["m1", "o1"];
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -35,7 +37,7 @@ const Section = ({
   title: string;
   icon: React.ReactNode;
   description: string;
-  events: CampusEvent[];
+  events: ManagerEvent[];
 }) => (
   <section>
     <div className="flex items-end justify-between mb-4 gap-4">
@@ -69,6 +71,7 @@ const EmptyState = () => (
 );
 
 export const StudentDashboard = () => {
+  const { events: ALL_EVENTS } = useEvents();
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [range, setRange] = useState<DateRange | undefined>();
@@ -99,7 +102,7 @@ export const StudentDashboard = () => {
         }
         return true;
       });
-  }, [search, dateFilter, range, categories]);
+  }, [search, dateFilter, range, categories, ALL_EVENTS]);
 
   const hasHistory = PAST_REGISTRATIONS.length > 0;
 
@@ -111,10 +114,10 @@ export const StudentDashboard = () => {
     return filtered
       .filter((e) => pastCats.has(e.category) && !PAST_REGISTRATIONS.includes(e.id))
       .slice(0, 4);
-  }, [filtered, hasHistory]);
+  }, [filtered, hasHistory, ALL_EVENTS]);
 
   const trending = useMemo(
-    () => [...filtered].sort((a, b) => b.registrations - a.registrations).slice(0, 4),
+    () => [...filtered].sort((a, b) => b.registrants.length - a.registrants.length).slice(0, 4),
     [filtered]
   );
 
