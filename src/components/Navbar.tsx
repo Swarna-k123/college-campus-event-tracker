@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { GraduationCap, LogOut, Menu, User, X } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, Menu, User, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/roles";
@@ -37,6 +38,7 @@ interface NavbarProps {
 
 export const Navbar = ({ role, onRoleChange }: NavbarProps) => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const links = linksByRole[role];
 
   return (
@@ -78,11 +80,11 @@ export const Navbar = ({ role, onRoleChange }: NavbarProps) => {
               </button>
             ))}
           </div>
-          <Button variant="ghost" size="icon" className="rounded-full">
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate("/signup")}>
             <User className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="gap-2">
-            <LogOut className="h-4 w-4" /> Logout
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/login")}>
+            <LogIn className="h-4 w-4" /> Sign in
           </Button>
         </div>
 
