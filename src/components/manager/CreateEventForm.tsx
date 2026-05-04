@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { EventCategory } from "@/data/events";
-import type { ManagerEvent } from "@/data/managerEvents";
+import { CURRENT_CLUB, type ManagerEvent } from "@/data/managerEvents";
 
 interface Props {
   onCreate: (event: ManagerEvent) => void;
@@ -89,6 +89,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
       maxRegistrations: max,
       status: "pending",
       registrants: [],
+      club: CURRENT_CLUB,
     });
     toast.success("Event submitted for approval");
     reset();
