@@ -1,63 +1,284 @@
-import { Calendar, MapPin, Search, Ticket, Users, Bookmark } from "lucide-react";
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { CalendarIcon, Flame, Search, Sparkles, CalendarClock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { DashboardCard, StatCard } from "@/components/DashboardCard";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { events as ALL_EVENTS, type CampusEvent, type EventCategory } from "@/data/events";
+import { EventCard } from "@/components/EventCard";
+import type { DateRange } from "react-day-picker";
 
-const events = [
-  { title: "AI & Robotics Summit", club: "Tech Club", date: "May 12 · 4:00 PM", venue: "Auditorium A", tag: "Tech", spots: 38 },
-  { title: "Spring Music Festival", club: "Music Society", date: "May 18 · 6:30 PM", venue: "Open Grounds", tag: "Culture", spots: 120 },
-  { title: "Startup Pitch Night", club: "E-Cell", date: "May 22 · 5:00 PM", venue: "Innovation Lab", tag: "Business", spots: 24 },
-  { title: "Photography Walk", club: "Lens Club", date: "May 25 · 7:00 AM", venue: "Old Quad", tag: "Arts", spots: 15 },
-];
+type DateFilter = "all" | "today" | "week" | "custom";
+const CATEGORIES: EventCategory[] = ["Technical", "Cultural", "Sports", "Others"];
 
-export const StudentDashboard = () => (
-  <div className="space-y-8">
-    <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+// Mock: pretend the user previously registered for these event ids. Empty = new user.
+const PAST_REGISTRATIONS: string[] = ["1", "5"];
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const within7Days = (d: Date) => {
+  const now = new Date();
+  const end = new Date();
+  end.setDate(now.getDate() + 7);
+  return d >= now && d <= end;
+};
+
+const Section = ({
+  title,
+  icon,
+  description,
+  events,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  events: CampusEvent[];
+}) => (
+  <section>
+    <div className="flex items-end justify-between mb-4 gap-4">
       <div>
-        <p className="text-sm text-muted-foreground">Welcome back,</p>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Aarav Sharma 👋</h1>
-        <p className="text-muted-foreground mt-1">Discover what's happening on campus this week.</p>
+        <h2 className="text-xl md:text-2xl font-semibold tracking-tight flex items-center gap-2">
+          {icon} {title}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
       </div>
-      <div className="relative w-full md:w-80">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search events, clubs..." className="pl-9 bg-secondary/60 border-border/60" />
-      </div>
-    </header>
-
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard label="Registered" value={6} delta="+2 this week" icon={<Ticket className="h-5 w-5" />} />
-      <StatCard label="Upcoming" value={3} icon={<Calendar className="h-5 w-5" />} />
-      <StatCard label="Clubs Joined" value={4} icon={<Users className="h-5 w-5" />} />
-      <StatCard label="Saved" value={9} icon={<Bookmark className="h-5 w-5" />} />
     </div>
-
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold tracking-tight">Featured Events</h2>
-        <Button variant="ghost" size="sm">View all</Button>
-      </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    {events.length === 0 ? (
+      <EmptyState />
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {events.map((e) => (
-          <DashboardCard key={e.title} className="flex flex-col gap-3">
-            <div className="aspect-[4/3] rounded-xl bg-gradient-primary/30 border border-border/60 grid place-items-center text-primary">
-              <Calendar className="h-8 w-8 opacity-70" />
-            </div>
-            <Badge variant="secondary" className="self-start bg-secondary/80">{e.tag}</Badge>
-            <div>
-              <h3 className="font-semibold leading-snug">{e.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{e.club}</p>
-            </div>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> {e.date}</p>
-              <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" /> {e.venue}</p>
-            </div>
-            <Button className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90 border-0">
-              Register · {e.spots} left
-            </Button>
-          </DashboardCard>
+          <EventCard key={e.id} event={e} />
         ))}
       </div>
-    </section>
+    )}
+  </section>
+);
+
+const EmptyState = () => (
+  <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+    <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary/60 text-muted-foreground mb-3">
+      <CalendarClock className="h-6 w-6" />
+    </div>
+    <p className="font-medium">No events available</p>
+    <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or check back soon.</p>
   </div>
 );
+
+export const StudentDashboard = () => {
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [categories, setCategories] = useState<Set<EventCategory>>(new Set());
+
+  const toggleCategory = (c: EventCategory) => {
+    setCategories((prev) => {
+      const next = new Set(prev);
+      next.has(c) ? next.delete(c) : next.add(c);
+      return next;
+    });
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return ALL_EVENTS.filter((e) => e.status === "approved")
+      .filter((e) =>
+        q ? e.title.toLowerCase().includes(q) || e.club.toLowerCase().includes(q) : true
+      )
+      .filter((e) => (categories.size ? categories.has(e.category) : true))
+      .filter((e) => {
+        const d = new Date(e.date);
+        if (dateFilter === "today") return sameDay(d, new Date());
+        if (dateFilter === "week") return within7Days(d);
+        if (dateFilter === "custom" && range?.from) {
+          const to = range.to ?? range.from;
+          return d >= range.from && d <= new Date(to.getTime() + 86400000 - 1);
+        }
+        return true;
+      });
+  }, [search, dateFilter, range, categories]);
+
+  const hasHistory = PAST_REGISTRATIONS.length > 0;
+
+  const recommended = useMemo(() => {
+    if (!hasHistory) return [];
+    const pastCats = new Set(
+      ALL_EVENTS.filter((e) => PAST_REGISTRATIONS.includes(e.id)).map((e) => e.category)
+    );
+    return filtered
+      .filter((e) => pastCats.has(e.category) && !PAST_REGISTRATIONS.includes(e.id))
+      .slice(0, 4);
+  }, [filtered, hasHistory]);
+
+  const trending = useMemo(
+    () => [...filtered].sort((a, b) => b.registrations - a.registrations).slice(0, 4),
+    [filtered]
+  );
+
+  const upcoming = useMemo(
+    () => [...filtered].sort((a, b) => +new Date(a.date) - +new Date(b.date)),
+    [filtered]
+  );
+
+  const showRecommended = hasHistory && recommended.length > 0;
+
+  return (
+    <div className="space-y-10">
+      <header>
+        <p className="text-sm text-muted-foreground">Welcome back,</p>
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Aarav Sharma 👋</h1>
+        <p className="text-muted-foreground mt-1">
+          Discover what's happening on campus and register in one tap.
+        </p>
+      </header>
+
+      {/* Filter bar */}
+      <div className="rounded-2xl border border-border/60 bg-gradient-card p-4 md:p-5 shadow-soft backdrop-blur-xl space-y-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search events or clubs..."
+              className="pl-9 bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(["all", "today", "week"] as DateFilter[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setDateFilter(f)}
+                className={cn(
+                  "px-4 h-11 rounded-xl text-sm border transition-colors",
+                  dateFilter === f
+                    ? "bg-gradient-primary text-primary-foreground border-transparent shadow-glow"
+                    : "bg-secondary/60 text-muted-foreground border-border/60 hover:text-foreground"
+                )}
+              >
+                {f === "all" ? "All dates" : f === "today" ? "Today" : "This week"}
+              </button>
+            ))}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  onClick={() => setDateFilter("custom")}
+                  className={cn(
+                    "h-11 rounded-xl gap-2 border-border/60",
+                    dateFilter === "custom" &&
+                      "bg-gradient-primary text-primary-foreground border-transparent shadow-glow hover:opacity-90"
+                  )}
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                  {range?.from
+                    ? range.to
+                      ? `${format(range.from, "MMM d")} – ${format(range.to, "MMM d")}`
+                      : format(range.from, "MMM d")
+                    : "Custom range"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={range}
+                  onSelect={(r) => {
+                    setRange(r);
+                    setDateFilter("custom");
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {(dateFilter !== "all" || range) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setDateFilter("all");
+                  setRange(undefined);
+                }}
+                aria-label="Clear date filter"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((c) => {
+            const active = categories.has(c);
+            return (
+              <button
+                key={c}
+                onClick={() => toggleCategory(c)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs border transition-colors",
+                  active
+                    ? "bg-primary/20 text-primary border-primary/50"
+                    : "bg-secondary/60 text-muted-foreground border-border/60 hover:text-foreground"
+                )}
+              >
+                {c}
+              </button>
+            );
+          })}
+          {categories.size > 0 && (
+            <button
+              onClick={() => setCategories(new Set())}
+              className="px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {showRecommended ? (
+            <Section
+              title="Recommended for You"
+              icon={<Sparkles className="h-5 w-5 text-primary" />}
+              description="Picked from clubs and categories you've engaged with."
+              events={recommended}
+            />
+          ) : (
+            <Section
+              title="Trending Events"
+              icon={<Flame className="h-5 w-5 text-accent" />}
+              description="What everyone on campus is signing up for."
+              events={trending}
+            />
+          )}
+
+          {showRecommended && (
+            <Section
+              title="Trending Events"
+              icon={<Flame className="h-5 w-5 text-accent" />}
+              description="Most registrations across campus right now."
+              events={trending}
+            />
+          )}
+
+          <Section
+            title="Upcoming Events"
+            icon={<CalendarClock className="h-5 w-5 text-primary" />}
+            description="Sorted by the soonest start time."
+            events={upcoming}
+          />
+        </>
+      )}
+    </div>
+  );
+};
