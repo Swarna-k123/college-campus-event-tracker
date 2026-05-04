@@ -31,7 +31,8 @@ import { cn } from "@/lib/utils";
 import { DashboardCard, StatCard } from "@/components/DashboardCard";
 import { CreateEventForm } from "@/components/manager/CreateEventForm";
 import { RegistrationsDialog } from "@/components/manager/RegistrationsDialog";
-import { initialManagerEvents, type ManagerEvent, type ManagerStatus } from "@/data/managerEvents";
+import { type ManagerEvent, type ManagerStatus } from "@/data/managerEvents";
+import { useEvents } from "@/context/EventsContext";
 
 const statusMeta: Record<ManagerStatus, { label: string; cls: string; icon: React.ReactNode }> = {
   approved: {
@@ -52,7 +53,8 @@ const statusMeta: Record<ManagerStatus, { label: string; cls: string; icon: Reac
 };
 
 export const ManagerDashboard = () => {
-  const [events, setEvents] = useState<ManagerEvent[]>(initialManagerEvents);
+  const { events: allEvents, myClub, addEvent, removeEvent } = useEvents();
+  const events = useMemo(() => allEvents.filter((e) => e.club === myClub), [allEvents, myClub]);
   const [tab, setTab] = useState<"overview" | "create" | "events">("overview");
   const [viewing, setViewing] = useState<ManagerEvent | null>(null);
   const [deleting, setDeleting] = useState<ManagerEvent | null>(null);
@@ -68,13 +70,13 @@ export const ManagerDashboard = () => {
   }, [events]);
 
   const handleCreate = (event: ManagerEvent) => {
-    setEvents((prev) => [event, ...prev]);
+    addEvent(event);
     setTab("events");
   };
 
   const confirmDelete = () => {
     if (!deleting) return;
-    setEvents((prev) => prev.filter((e) => e.id !== deleting.id));
+    removeEvent(deleting.id);
     toast.success(`Deleted "${deleting.title}"`);
     setDeleting(null);
   };
