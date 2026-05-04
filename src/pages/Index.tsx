@@ -1,16 +1,23 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Navbar } from "@/components/Navbar";
+import { StudentDashboard } from "@/components/dashboards/StudentDashboard";
+import { ManagerDashboard } from "@/components/dashboards/ManagerDashboard";
+import { AdminDashboard } from "@/components/dashboards/AdminDashboard";
+import type { Role } from "@/lib/roles";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [role, setRole] = useState<Role>("student");
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen">
+      <Navbar role={role} onRoleChange={setRole} />
+      <main className="container py-8 md:py-12">
+        {role === "student" && <StudentDashboard />}
+        {role === "manager" && <ManagerDashboard />}
+        {role === "admin" && <AdminDashboard />}
+      </main>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
