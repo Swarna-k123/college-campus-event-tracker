@@ -1,45 +1,30 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { GraduationCap, LogIn, LogOut, Menu, User, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { GraduationCap, LogOut, Menu, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/roles";
+import { useAuth } from "@/context/AuthContext";
 
 const linksByRole: Record<Role, { label: string; to: string }[]> = {
-  student: [
-    { label: "Browse Events", to: "/student" },
-    { label: "My Registrations", to: "/student?tab=registrations" },
-    { label: "Calendar", to: "/student?tab=calendar" },
-  ],
-  manager: [
-    { label: "My Events", to: "/manager" },
-    { label: "Create Event", to: "/manager?tab=create" },
-    { label: "Attendees", to: "/manager?tab=attendees" },
-  ],
-  admin: [
-    { label: "Overview", to: "/admin" },
-    { label: "Clubs", to: "/admin?tab=clubs" },
-    { label: "Users", to: "/admin?tab=users" },
-    { label: "Reports", to: "/admin?tab=reports" },
-  ],
-};
-
-const roleLabel: Record<Role, string> = {
-  student: "Student",
-  manager: "Club Manager",
-  admin: "Admin",
+  student: [{ label: "Student Dashboard", to: "/student-dashboard" }],
+  manager: [{ label: "Manager Dashboard", to: "/manager-dashboard" }],
+  admin: [{ label: "Admin Dashboard", to: "/admin-dashboard" }],
 };
 
 interface NavbarProps {
   role: Role;
-  onRoleChange: (role: Role) => void;
+  name: string;
 }
 
-export const Navbar = ({ role, onRoleChange }: NavbarProps) => {
+export const Navbar = ({ role, name }: NavbarProps) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const links = linksByRole[role];
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/60 border-b border-border/60">
@@ -53,38 +38,22 @@ export const Navbar = ({ role, onRoleChange }: NavbarProps) => {
 
         <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
-            <a
+            <NavLink
               key={l.label}
-              href={l.to}
+              to={l.to}
               className="px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             >
               {l.label}
-            </a>
+            </NavLink>
           ))}
         </nav>
 
         <div className="hidden md:flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full bg-secondary/60 p-1 border border-border/60">
-            {(Object.keys(linksByRole) as Role[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => onRoleChange(r)}
-                className={cn(
-                  "px-3 py-1 text-xs rounded-full transition-all",
-                  role === r
-                    ? "bg-gradient-primary text-primary-foreground shadow-glow"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {roleLabel[r]}
-              </button>
-            ))}
-          </div>
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate("/signup")}>
+          <Button variant="ghost" size="icon" className="rounded-full" title={name}>
             <User className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/login")}>
-            <LogIn className="h-4 w-4" /> Sign in
+          <Button variant="ghost" size="sm" className="gap-2" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" /> Logout
           </Button>
         </div>
 
@@ -102,36 +71,21 @@ export const Navbar = ({ role, onRoleChange }: NavbarProps) => {
       {open && (
         <div className="md:hidden border-t border-border/60 bg-background/90 backdrop-blur-xl">
           <div className="container py-4 flex flex-col gap-3">
-            <div className="flex flex-wrap gap-1 rounded-xl bg-secondary/60 p-1 border border-border/60">
-              {(Object.keys(linksByRole) as Role[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => onRoleChange(r)}
-                  className={cn(
-                    "flex-1 px-3 py-1.5 text-xs rounded-lg transition-all",
-                    role === r
-                      ? "bg-gradient-primary text-primary-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {roleLabel[r]}
-                </button>
-              ))}
-            </div>
             {links.map((l) => (
-              <a
+              <NavLink
                 key={l.label}
-                href={l.to}
+                to={l.to}
+                onClick={() => setOpen(false)}
                 className="px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60"
               >
                 {l.label}
-              </a>
+              </NavLink>
             ))}
             <div className="flex items-center justify-between border-t border-border/60 pt-3">
               <Button variant="ghost" size="sm" className="gap-2">
-                <User className="h-4 w-4" /> Profile
+                <User className="h-4 w-4" /> {name}
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Logout
               </Button>
             </div>

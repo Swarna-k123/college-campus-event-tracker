@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getDashboardPathForRole, useAuth } from "@/context/AuthContext";
 
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -19,6 +20,7 @@ const Login = () => {
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,11 +33,16 @@ const Login = () => {
     }
     setErrors({});
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const user = await login({ email, password });
       toast.success("Welcome back!");
-      navigate("/");
-    }, 700);
+      navigate(getDashboardPathForRole(user.role), { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to sign in. Please try again.";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

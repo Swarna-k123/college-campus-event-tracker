@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getDashboardPathForRole, useAuth } from "@/context/AuthContext";
 
 const INTERESTS = ["Technical", "Cultural", "Sports", "Hackathons", "Workshops"] as const;
 type Interest = typeof INTERESTS[number];
@@ -24,9 +25,11 @@ const schema = z.object({
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { signup } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [clubName, setClubName] = useState("");
   const [show, setShow] = useState(false);
   const [role, setRole] = useState<Role>("student");
   const [interests, setInterests] = useState<Set<Interest>>(new Set());
@@ -44,19 +47,42 @@ const Signup = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = schema.safeParse({ name, email, password, role });
-    if (!result.success) {
+    const managerClubName = clubName.trim();
+    if (!result.success || (role === "manager" && !managerClubName)) {
       const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((i) => (fieldErrors[i.path[0] as string] = i.message));
+      if (!result.success) {
+        result.error.issues.forEach((i) => (fieldErrors[i.path[0] as string] = i.message));
+      }
+      if (role === "manager" && !managerClubName) {
+        fieldErrors.clubName = "Club name is required for club manager signup.";
+      }
       setErrors(fieldErrors);
       return;
     }
     setErrors({});
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const user = await signup({
+        name,
+        email,
+        password,
+        role,
+        clubId: null,
+        clubName: role === "manager" ? managerClubName : undefined,
+      });
+      if (user) {
+        toast.success("Account created — welcome to CampusHub!");
+        navigate(getDashboardPathForRole(user.role), { replace: true });
+        return;
+      }
+      toast.success("Signup successful! Check your email to confirm your account.");
+      navigate("/login", { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to sign up. Please try again.";
+      toast.error(msg);
+    } finally {
       setLoading(false);
-      toast.success("Account created — welcome to CampusHub!");
-      navigate("/");
-    }, 700);
+    }
   };
 
   return (
@@ -150,6 +176,21 @@ const Signup = () => {
               </div>
               {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
             </div>
+
+            {role === "manager" && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <Label htmlFor="clubName">Club Name</Label>
+                <Input
+                  id="clubName"
+                  value={clubName}
+                  onChange={(e) => setClubName(e.target.value)}
+                  placeholder="Enter club name"
+                  maxLength={120}
+                  className="h-11 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
+                />
+                {errors.clubName && <p className="text-xs text-destructive">{errors.clubName}</p>}
+              </div>
+            )}
 
             {role === "student" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
