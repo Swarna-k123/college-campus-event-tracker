@@ -1,4 +1,4 @@
-import { Calendar, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ManagerEvent } from "@/data/managerEvents";
@@ -19,12 +19,27 @@ const formatDate = (iso: string) =>
     minute: "2-digit",
   });
 
+const formatDateOnly = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const formatTimeOnly = (iso: string) =>
+  new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
 type Props = {
   event: ManagerEvent;
   onRegisterClick?: () => void;
+  isRegistered?: boolean;
 };
 
-export const EventCard = ({ event, onRegisterClick }: Props) => {
+export const EventCard = ({ event, onRegisterClick, isRegistered }: Props) => {
   const count = registrationCount(event);
 
   return (
@@ -48,21 +63,44 @@ export const EventCard = ({ event, onRegisterClick }: Props) => {
           <h3 className="font-semibold text-base leading-snug line-clamp-2">{event.title}</h3>
           <p className="text-xs text-muted-foreground mt-1">{event.club}</p>
         </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" /> {formatDate(event.date)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" /> {count}
-          </span>
-        </div>
-        <Button
-          type="button"
-          className="w-full bg-gradient-primary text-primary-foreground border-0 hover:opacity-90"
-          onClick={onRegisterClick}
-        >
-          Register Now
-        </Button>
+        {isRegistered ? (
+          <div className="space-y-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 shrink-0" /> {formatDateOnly(event.date)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 shrink-0" /> {formatTimeOnly(event.date)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 shrink-0" /> {event.venue}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" /> {formatDate(event.date)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" /> {count}
+            </span>
+          </div>
+        )}
+        {isRegistered ? (
+          <Badge
+            variant="outline"
+            className="w-full justify-center py-2 text-sm bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
+          >
+            Registered
+          </Badge>
+        ) : (
+          <Button
+            type="button"
+            className="w-full bg-gradient-primary text-primary-foreground border-0 hover:opacity-90"
+            onClick={onRegisterClick}
+          >
+            Register Now
+          </Button>
+        )}
       </div>
     </article>
   );

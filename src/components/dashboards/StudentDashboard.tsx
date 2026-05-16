@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Flame, Loader2, Search, Sparkles, CalendarClock, X } from "lucide-react";
+import { CalendarIcon, CalendarCheck, Flame, Loader2, Search, Sparkles, CalendarClock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { EventCategory } from "@/data/events";
@@ -81,6 +88,15 @@ const Section = ({
   </section>
 );
 
+const RegisteredEventsEmptyState = () => (
+  <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+    <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary/60 text-muted-foreground mb-3">
+      <CalendarCheck className="h-6 w-6" />
+    </div>
+    <p className="font-medium">You haven&apos;t registered for any events yet.</p>
+  </div>
+);
+
 const EmptyState = () => (
   <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
     <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary/60 text-muted-foreground mb-3">
@@ -90,6 +106,31 @@ const EmptyState = () => (
     <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or check back soon.</p>
   </div>
 );
+
+type RegistrationWithEvent = {
+  event_id: string;
+  events: (EventRow & { clubs: { name: string } | null }) | null;
+};
+
+async function loadMyRegisteredEvents(studentId: string): Promise<ManagerEvent[]> {
+  const { data, error } = await supabase
+    .from("event_registrations")
+    .select("event_id, events ( *, clubs ( name ) )")
+    .eq("student_id", studentId)
+    .order("registered_at", { ascending: true });
+
+  if (error) throw new Error(getSupabaseErrorMessage(error));
+  if (!data?.length) return [];
+
+  const events: ManagerEvent[] = [];
+  for (const row of data as RegistrationWithEvent[]) {
+    const ev = row.events;
+    if (!ev || ev.status !== "approved") continue;
+    events.push(mapEventRowToManagerEvent(ev, ev.clubs?.name ?? "Club"));
+  }
+
+  return events.sort((a, b) => +new Date(a.date) - +new Date(b.date));
+}
 
 async function loadApprovedEventsWithCounts(): Promise<ManagerEvent[]> {
   const { data: rows, error } = await supabase
@@ -136,6 +177,7 @@ export const StudentDashboard = () => {
   const [branch, setBranch] = useState("");
   const [semester, setSemester] = useState("1");
   const [registering, setRegistering] = useState(false);
+  const [myRegistrationsOpen, setMyRegistrationsOpen] = useState(false);
 
   const {
     data: allApproved = [],
@@ -151,13 +193,52 @@ export const StudentDashboard = () => {
       .channel("student-events-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => {
         void queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
+        if (user?.id) {
+          void queryClient.invalidateQueries({ queryKey: ["my-registered-events", user.id] });
+        }
       })
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("student-registrations-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "event_registrations",
+          filter: `student_id=eq.${user.id}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["my-registered-events", user.id] });
+          void queryClient.invalidateQueries({ queryKey: ["my-registration-ids", user.id] });
+          void queryClient.invalidateQueries({ queryKey: ["my-registration-categories"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
+
+  const {
+    data: myRegisteredEvents = [],
+    isLoading: isLoadingMyRegistered,
+    error: myRegisteredError,
+  } = useQuery({
+    queryKey: ["my-registered-events", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => loadMyRegisteredEvents(user!.id),
+  });
 
   const { data: myRegistrationEventIds = [] } = useQuery({
     queryKey: ["my-registration-ids", user?.id],
@@ -304,6 +385,10 @@ export const StudentDashboard = () => {
     queryClient.setQueryData<string[]>(["my-registration-ids", user.id], (prev = []) =>
       prev.includes(registerTarget.id) ? prev : [...prev, registerTarget.id]
     );
+    queryClient.setQueryData<ManagerEvent[]>(["my-registered-events", user.id], (prev = []) => {
+      if (prev.some((e) => e.id === registerTarget.id)) return prev;
+      return [...prev, registerTarget].sort((a, b) => +new Date(a.date) - +new Date(b.date));
+    });
     queryClient.setQueryData<EventCategory[]>(
       ["my-registration-categories", user.id, [...myRegistrationEventIds].sort().join(",")],
       (prev = []) => {
@@ -319,16 +404,33 @@ export const StudentDashboard = () => {
     void queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
     void queryClient.invalidateQueries({ queryKey: ["my-registration-ids"] });
     void queryClient.invalidateQueries({ queryKey: ["my-registration-categories"] });
+    void queryClient.invalidateQueries({ queryKey: ["my-registered-events", user.id] });
   };
 
   return (
     <div className="space-y-10">
-      <header>
-        <p className="text-sm text-muted-foreground">Welcome back,</p>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{user?.name ?? "Student"} 👋</h1>
-        <p className="text-muted-foreground mt-1">
-          Discover what's happening on campus and register in one tap.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Welcome back,</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{user?.name ?? "Student"} 👋</h1>
+          <p className="text-muted-foreground mt-1">
+            Discover what&apos;s happening on campus and register in one tap.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setMyRegistrationsOpen(true)}
+          className="h-11 shrink-0 rounded-xl gap-2 border-border/60 bg-secondary/60 hover:bg-secondary"
+        >
+          <CalendarCheck className="h-4 w-4 text-primary" />
+          My Registrations
+          {myRegisteredEvents.length > 0 && (
+            <span className="ml-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-primary/20 px-1.5 text-xs font-medium text-primary">
+              {myRegisteredEvents.length}
+            </span>
+          )}
+        </Button>
       </header>
 
       {error && (
@@ -491,6 +593,49 @@ export const StudentDashboard = () => {
           />
         </>
       )}
+
+      <Sheet open={myRegistrationsOpen} onOpenChange={setMyRegistrationsOpen}>
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto border-border/60 bg-gradient-card sm:max-w-xl md:max-w-3xl lg:max-w-4xl"
+        >
+          <SheetHeader className="pr-8 text-left">
+            <SheetTitle className="text-xl md:text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-primary" />
+              My Registrations
+            </SheetTitle>
+            <SheetDescription>Events you&apos;ve signed up for.</SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6">
+            {myRegisteredError && (
+              <p className="text-sm text-destructive mb-4">{(myRegisteredError as Error).message}</p>
+            )}
+            {isLoadingMyRegistered ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading your events…
+              </div>
+            ) : myRegisteredEvents.length === 0 ? (
+              <RegisteredEventsEmptyState />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {myRegisteredEvents.map((e) => (
+                  <EventCard key={e.id} event={e} isRegistered />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setMyRegistrationsOpen(false)}
+            className="mt-8 w-full rounded-xl border-border/60"
+          >
+            Back to dashboard
+          </Button>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!registerTarget} onOpenChange={(o) => !o && setRegisterTarget(null)}>
         <DialogContent className="bg-gradient-card border-border/60 sm:max-w-md">
