@@ -34,7 +34,7 @@ type SignupInput = {
   password: string;
   role: Exclude<Role, "admin">;
   clubId: string | null;
-  clubName?: string;
+  managerAccessCode?: string;
 };
 
 type AuthContextValue = {
@@ -90,6 +90,7 @@ async function ensureProfileFromSession(session: Session) {
     full_name?: string;
     role?: DbAppRole;
     club_id?: string | null;
+    access_code_id?: string;
   };
 
   const role = (meta.role ?? "student") as DbAppRole;
@@ -103,30 +104,53 @@ async function ensureProfileFromSession(session: Session) {
     role,
     club_id: role === "club_manager" ? meta.club_id ?? null : null,
   });
+
+  if (role === "club_manager" && meta.access_code_id) {
+    await supabase
+      .from("club_manager_access")
+      .update({ is_used: true })
+      .eq("id", meta.access_code_id);
+  }
 }
 
-async function getOrCreateClubIdByName(clubName: string): Promise<string> {
-  const normalizedName = clubName.trim();
-  if (!normalizedName) throw new Error("Club name is required for club manager signup.");
+async function resolveClubIdFromAccessCode(accessCode: string): Promise<{
+  clubId: string;
+  accessRowId: string;
+}> {
+  const code = accessCode.trim();
+  if (!code) throw new Error("Manager access code is required.");
 
-  const { data: existingClub, error: existingError } = await supabase
+  const { data: accessRow, error } = await supabase
+    .from("club_manager_access")
+    .select("id, club_name, is_used")
+    .eq("access_code", code)
+    .maybeSingle();
+
+  if (error) throw new Error(getSupabaseErrorMessage(error));
+  if (!accessRow) throw new Error("Invalid manager access code");
+  if (accessRow.is_used) throw new Error("This manager access code has already been used");
+
+  const { data: club, error: clubError } = await supabase
     .from("clubs")
     .select("id")
-    .ilike("name", normalizedName)
+    .ilike("name", accessRow.club_name.trim())
     .limit(1)
     .maybeSingle();
 
-  if (existingError) throw new Error(getSupabaseErrorMessage(existingError));
-  if (existingClub?.id) return existingClub.id;
+  if (clubError) throw new Error(getSupabaseErrorMessage(clubError));
+  if (!club?.id) {
+    throw new Error("Club not found for this access code. Contact an administrator.");
+  }
 
-  const { data: createdClub, error: createError } = await supabase
-    .from("clubs")
-    .insert({ name: normalizedName })
-    .select("id")
-    .single();
+  return { clubId: club.id, accessRowId: accessRow.id };
+}
 
-  if (createError) throw new Error(getSupabaseErrorMessage(createError));
-  return createdClub.id;
+async function markManagerAccessCodeUsed(accessRowId: string) {
+  const { error } = await supabase
+    .from("club_manager_access")
+    .update({ is_used: true })
+    .eq("id", accessRowId);
+  if (error) throw new Error(getSupabaseErrorMessage(error));
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -217,11 +241,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = useCallback(async (input: SignupInput) => {
     const email = input.email.trim().toLowerCase();
     const roleDb: DbAppRole = input.role === "manager" ? "club_manager" : "student";
-    const resolvedClubId =
-      input.role === "manager" ? await getOrCreateClubIdByName(input.clubName ?? "") : null;
 
-    if (input.role === "manager" && !resolvedClubId) {
-      throw new Error("Enter a club name for club manager signup.");
+    let resolvedClubId: string | null = null;
+    let accessRowId: string | null = null;
+
+    if (input.role === "manager") {
+      const resolved = await resolveClubIdFromAccessCode(input.managerAccessCode ?? "");
+      resolvedClubId = resolved.clubId;
+      accessRowId = resolved.accessRowId;
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -232,6 +259,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           full_name: input.name.trim(),
           role: roleDb,
           club_id: resolvedClubId,
+          ...(accessRowId ? { access_code_id: accessRowId } : {}),
         },
       },
     });
@@ -249,6 +277,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         club_id: roleDb === "club_manager" ? resolvedClubId : null,
       });
       if (insErr) throw new Error(getSupabaseErrorMessage(insErr));
+
+      if (accessRowId) {
+        await markManagerAccessCodeUsed(accessRowId);
+      }
 
       const profile = await fetchProfile(data.user.id);
       if (profile) setUser(profile);

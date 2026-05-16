@@ -40,6 +40,9 @@ import { getSupabaseErrorMessage, type EventRow } from "@/lib/db";
 import { mapEventRowToManagerEvent } from "@/lib/eventMap";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { TeamRegistrationDialog } from "@/components/student/TeamRegistrationDialog";
+import { registerTeamForEvent } from "@/lib/registrations";
+import { isTeamEvent, type TeamRegistrationDetails } from "@/data/teamRegistration";
 
 type DateFilter = "all" | "today" | "week" | "custom";
 type StudentEventCategory = EventCategory | "Hackathons" | "Workshops";
@@ -351,6 +354,64 @@ export const StudentDashboard = () => {
     setRegisterTarget(event);
   };
 
+  const applyRegistrationSuccess = (event: ManagerEvent) => {
+    if (!user) return;
+    queryClient.setQueryData<ManagerEvent[]>(["student-approved-events"], (prev = []) =>
+      prev.map((e) =>
+        e.id === event.id ? { ...e, registrationCount: registrationCount(e) + 1 } : e
+      )
+    );
+    queryClient.setQueryData<string[]>(["my-registration-ids", user.id], (prev = []) =>
+      prev.includes(event.id) ? prev : [...prev, event.id]
+    );
+    queryClient.setQueryData<ManagerEvent[]>(["my-registered-events", user.id], (prev = []) => {
+      if (prev.some((e) => e.id === event.id)) return prev;
+      return [...prev, event].sort((a, b) => +new Date(a.date) - +new Date(b.date));
+    });
+    queryClient.setQueryData<EventCategory[]>(
+      ["my-registration-categories", user.id, [...myRegistrationEventIds].sort().join(",")],
+      (prev = []) => {
+        const category = event.category;
+        return prev.includes(category) ? prev : [...prev, category];
+      }
+    );
+    void queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
+    void queryClient.invalidateQueries({ queryKey: ["my-registration-ids"] });
+    void queryClient.invalidateQueries({ queryKey: ["my-registration-categories"] });
+    void queryClient.invalidateQueries({ queryKey: ["my-registered-events", user.id] });
+  };
+
+  const submitTeamRegister = async (teamDetails: TeamRegistrationDetails) => {
+    if (!registerTarget || !user) return;
+    if (myRegistrationEventIds.includes(registerTarget.id)) {
+      toast.error("You have already registered for this event.");
+      return;
+    }
+    if (registrationCount(registerTarget) >= registerTarget.maxRegistrations) {
+      toast.error("This event is full.");
+      return;
+    }
+
+    setRegistering(true);
+    try {
+      await registerTeamForEvent({
+        eventId: registerTarget.id,
+        studentId: user.id,
+        phone: teamDetails.leader.phone,
+        branch: teamDetails.leader.branch,
+        semester: teamDetails.leader.semester,
+        teamDetails,
+      });
+      toast.success("Your team is registered!");
+      applyRegistrationSuccess(registerTarget);
+      setRegisterTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const submitRegister = async () => {
     if (!registerTarget || !user) return;
     const sem = parseInt(semester, 10);
@@ -381,37 +442,11 @@ export const StudentDashboard = () => {
     }
 
     toast.success("You're registered!");
-
-    queryClient.setQueryData<ManagerEvent[]>(["student-approved-events"], (prev = []) =>
-      prev.map((event) =>
-        event.id === registerTarget.id
-          ? { ...event, registrationCount: registrationCount(event) + 1 }
-          : event
-      )
-    );
-    queryClient.setQueryData<string[]>(["my-registration-ids", user.id], (prev = []) =>
-      prev.includes(registerTarget.id) ? prev : [...prev, registerTarget.id]
-    );
-    queryClient.setQueryData<ManagerEvent[]>(["my-registered-events", user.id], (prev = []) => {
-      if (prev.some((e) => e.id === registerTarget.id)) return prev;
-      return [...prev, registerTarget].sort((a, b) => +new Date(a.date) - +new Date(b.date));
-    });
-    queryClient.setQueryData<EventCategory[]>(
-      ["my-registration-categories", user.id, [...myRegistrationEventIds].sort().join(",")],
-      (prev = []) => {
-        const category = registerTarget.category;
-        return prev.includes(category) ? prev : [...prev, category];
-      }
-    );
-
+    applyRegistrationSuccess(registerTarget);
     setRegisterTarget(null);
     setPhone("");
     setBranch("");
     setSemester("1");
-    void queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
-    void queryClient.invalidateQueries({ queryKey: ["my-registration-ids"] });
-    void queryClient.invalidateQueries({ queryKey: ["my-registration-categories"] });
-    void queryClient.invalidateQueries({ queryKey: ["my-registered-events", user.id] });
   };
 
   return (
@@ -644,7 +679,20 @@ export const StudentDashboard = () => {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={!!registerTarget} onOpenChange={(o) => !o && setRegisterTarget(null)}>
+      <TeamRegistrationDialog
+        event={registerTarget && isTeamEvent(registerTarget.eventType) ? registerTarget : null}
+        open={!!registerTarget && isTeamEvent(registerTarget.eventType)}
+        onOpenChange={(o) => !o && setRegisterTarget(null)}
+        defaultLeaderName={user?.name}
+        defaultLeaderEmail={user?.email}
+        onSubmit={submitTeamRegister}
+        submitting={registering}
+      />
+
+      <Dialog
+        open={!!registerTarget && !isTeamEvent(registerTarget.eventType)}
+        onOpenChange={(o) => !o && setRegisterTarget(null)}
+      >
         <DialogContent className="bg-gradient-card border-border/60 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Register</DialogTitle>

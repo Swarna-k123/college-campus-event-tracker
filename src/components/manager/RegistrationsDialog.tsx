@@ -2,14 +2,6 @@ import { format } from "date-fns";
 import { Download, Loader2, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { ManagerEvent, Registrant } from "@/data/managerEvents";
 
 interface Props {
@@ -27,15 +19,49 @@ export const RegistrationsDialog = ({ event, registrants, loading, onClose }: Pr
   );
 
   const exportCsv = () => {
-    const header = ["Name", "Email", "Phone", "Branch", "Semester", "Registered At"];
-    const rows = registrants.map((r) => [
-      r.name,
-      r.email,
-      r.phone,
-      r.branch,
-      r.semester,
-      new Date(r.registeredAt).toISOString(),
-    ]);
+    const header = [
+      "Type",
+      "Team Name",
+      "Leader Name",
+      "Leader Email",
+      "Leader Phone",
+      "Leader USN",
+      "Leader Branch",
+      "Leader Semester",
+      "Members",
+      "Registered At",
+    ];
+    const rows = registrants.map((r) => {
+      if (r.teamDetails) {
+        const members = r.teamDetails.members
+          .map((m) => `${m.name} (${m.usn}, ${m.email})`)
+          .join("; ");
+        return [
+          "Team",
+          r.teamDetails.team_name,
+          r.teamDetails.leader.name,
+          r.teamDetails.leader.email,
+          r.teamDetails.leader.phone,
+          r.teamDetails.leader.usn,
+          r.teamDetails.leader.branch,
+          r.teamDetails.leader.semester,
+          members,
+          new Date(r.registeredAt).toISOString(),
+        ];
+      }
+      return [
+        "Individual",
+        "",
+        r.name,
+        r.email,
+        r.phone,
+        "",
+        r.branch,
+        r.semester,
+        "",
+        new Date(r.registeredAt).toISOString(),
+      ];
+    });
     const csv = [header, ...rows]
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
       .join("\n");
@@ -53,7 +79,7 @@ export const RegistrationsDialog = ({ event, registrants, loading, onClose }: Pr
       <DialogContent className="max-w-4xl bg-gradient-card border-border/60">
         <DialogHeader>
           <DialogTitle className="text-xl">{event.title}</DialogTitle>
-          <DialogDescription>Registered students and contact details.</DialogDescription>
+          <DialogDescription>Registered students and team details.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-2">
@@ -82,39 +108,77 @@ export const RegistrationsDialog = ({ event, registrants, loading, onClose }: Pr
               No registrations yet.
             </div>
           ) : (
-            <Table>
-              <TableHeader className="sticky top-0 bg-card/95 backdrop-blur">
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead className="text-center">Sem</TableHead>
-                  <TableHead>Registered</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {registrants.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell>
-                      <div className="text-xs space-y-1">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Mail className="h-3 w-3" /> {r.email}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Phone className="h-3 w-3" /> {r.phone}
-                        </div>
+            <div className="divide-y divide-border/60">
+              {registrants.map((r) =>
+                r.teamDetails ? (
+                  <div key={r.id} className="p-4 space-y-3">
+                    <div>
+                      <p className="font-semibold">{r.teamDetails.team_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Team registration · {format(new Date(r.registeredAt), "MMM d, p")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-2 text-sm">
+                      <p className="text-xs font-medium text-primary uppercase tracking-wide">Team Leader</p>
+                      <p>Name: {r.teamDetails.leader.name}</p>
+                      <p>Email: {r.teamDetails.leader.email}</p>
+                      <p className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3" /> {r.teamDetails.leader.phone}
+                      </p>
+                      <p>USN: {r.teamDetails.leader.usn}</p>
+                      <p>Branch: {r.teamDetails.leader.branch}</p>
+                      <p>Semester: {r.teamDetails.leader.semester}</p>
+                    </div>
+                    {r.teamDetails.members.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-primary uppercase tracking-wide">Team Members</p>
+                        {r.teamDetails.members.map((m, idx) => (
+                          <div
+                            key={`${r.id}-member-${idx}`}
+                            className="rounded-lg border border-border/60 bg-card/40 p-3 text-sm space-y-1"
+                          >
+                            <p className="font-medium">{m.name}</p>
+                            <p className="text-muted-foreground text-xs">{m.email} · USN {m.usn}</p>
+                            <p className="text-muted-foreground text-xs">
+                              {m.branch} · Semester {m.semester}
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{r.branch}</TableCell>
-                    <TableCell className="text-center text-sm">{r.semester}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(r.registeredAt), "MMM d, p")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    )}
+                  </div>
+                ) : (
+                  <div key={r.id} className="p-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Name</p>
+                      <p className="font-medium">{r.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="flex items-center gap-1.5">
+                        <Mail className="h-3 w-3" /> {r.email}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3" /> {r.phone}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Branch / Sem</p>
+                      <p>
+                        {r.branch} · Sem {r.semester}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Registered</p>
+                      <p>{format(new Date(r.registeredAt), "MMM d, p")}</p>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
           )}
         </div>
       </DialogContent>

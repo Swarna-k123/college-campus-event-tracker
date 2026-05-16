@@ -1,4 +1,5 @@
 import type { EventCategory } from "@/data/events";
+import type { EventType, TeamRegistrationDetails } from "@/data/teamRegistration";
 
 /** Matches public.app_role in your database */
 export type DbAppRole = "student" | "club_manager" | "admin";
@@ -12,6 +13,8 @@ export type EventRow = {
   venue: string;
   category: EventCategory;
   max_registrations: number;
+  event_type?: EventType | null;
+  max_team_size?: number | null;
   budget: number | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
@@ -25,6 +28,14 @@ export type EventRow = {
 
 export type ClubRow = { id: string; name: string };
 
+export type ClubManagerAccessRow = {
+  id: string;
+  club_name: string;
+  access_code: string;
+  is_used: boolean;
+  created_at?: string;
+};
+
 export type RegistrationRow = {
   id: string;
   event_id: string;
@@ -32,6 +43,7 @@ export type RegistrationRow = {
   phone: string;
   branch: string;
   semester: number;
+  team_details?: TeamRegistrationDetails | null;
   registered_at: string;
 };
 

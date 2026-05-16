@@ -179,6 +179,8 @@ export const ManagerDashboard = () => {
       category: payload.category,
       max_registrations: payload.maxRegistrations,
       budget: payload.budget,
+      event_type: payload.eventType,
+      max_team_size: payload.eventType === "team" ? payload.maxTeamSize : null,
       status: "pending",
       club_id: user.clubId,
       created_by: user.id,
@@ -208,6 +210,8 @@ export const ManagerDashboard = () => {
         category: payload.category,
         max_registrations: payload.maxRegistrations,
         budget: payload.budget,
+        event_type: payload.eventType,
+        max_team_size: payload.eventType === "team" ? payload.maxTeamSize : null,
       })
       .eq("id", editing.id)
       .eq("created_by", user.id);

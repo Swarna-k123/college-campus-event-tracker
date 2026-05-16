@@ -16,6 +16,8 @@ export function mapEventRowToManagerEvent(
     venue: row.venue,
     category: row.category as EventCategory,
     maxRegistrations: row.max_registrations,
+    eventType: row.event_type ?? "individual",
+    maxTeamSize: row.max_team_size ?? null,
     budget: row.budget ?? null,
     status: row.status,
     rejectionReason: row.rejection_reason ?? undefined,

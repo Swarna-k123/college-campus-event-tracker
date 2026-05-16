@@ -30,6 +30,7 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [clubName, setClubName] = useState("");
+  const [managerAccessCode, setManagerAccessCode] = useState("");
   const [show, setShow] = useState(false);
   const [role, setRole] = useState<Role>("student");
   const [interests, setInterests] = useState<Set<Interest>>(new Set());
@@ -47,14 +48,14 @@ const Signup = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = schema.safeParse({ name, email, password, role });
-    const managerClubName = clubName.trim();
-    if (!result.success || (role === "manager" && !managerClubName)) {
+    const accessCode = managerAccessCode.trim();
+    if (!result.success || (role === "manager" && !accessCode)) {
       const fieldErrors: Record<string, string> = {};
       if (!result.success) {
         result.error.issues.forEach((i) => (fieldErrors[i.path[0] as string] = i.message));
       }
-      if (role === "manager" && !managerClubName) {
-        fieldErrors.clubName = "Club name is required for club manager signup.";
+      if (role === "manager" && !accessCode) {
+        fieldErrors.managerAccessCode = "Manager access code is required.";
       }
       setErrors(fieldErrors);
       return;
@@ -68,7 +69,7 @@ const Signup = () => {
         password,
         role,
         clubId: null,
-        clubName: role === "manager" ? managerClubName : undefined,
+        managerAccessCode: role === "manager" ? accessCode : undefined,
       });
       if (user) {
         toast.success("Account created — welcome to CampusHub!");
@@ -178,17 +179,32 @@ const Signup = () => {
             </div>
 
             {role === "manager" && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <Label htmlFor="clubName">Club Name</Label>
-                <Input
-                  id="clubName"
-                  value={clubName}
-                  onChange={(e) => setClubName(e.target.value)}
-                  placeholder="Enter club name"
-                  maxLength={120}
-                  className="h-11 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
-                />
-                {errors.clubName && <p className="text-xs text-destructive">{errors.clubName}</p>}
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="space-y-2">
+                  <Label htmlFor="clubName">Club Name</Label>
+                  <Input
+                    id="clubName"
+                    value={clubName}
+                    onChange={(e) => setClubName(e.target.value)}
+                    placeholder="Enter club name"
+                    maxLength={120}
+                    className="h-11 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="managerAccessCode">Manager Access Code</Label>
+                  <Input
+                    id="managerAccessCode"
+                    value={managerAccessCode}
+                    onChange={(e) => setManagerAccessCode(e.target.value)}
+                    placeholder="Enter manager access code"
+                    maxLength={120}
+                    className="h-11 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
+                  />
+                  {errors.managerAccessCode && (
+                    <p className="text-xs text-destructive">{errors.managerAccessCode}</p>
+                  )}
+                </div>
               </div>
             )}
 

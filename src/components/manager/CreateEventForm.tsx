@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { EventCategory } from "@/data/events";
+import type { EventType } from "@/data/teamRegistration";
 
 export type CreateEventSubmitPayload = {
   title: string;
@@ -25,6 +26,8 @@ export type CreateEventSubmitPayload = {
   category: EventCategory;
   maxRegistrations: number;
   budget: number;
+  eventType: EventType;
+  maxTeamSize: number | null;
   startsAt: Date;
   posterFile: File;
 };
@@ -45,6 +48,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [category, setCategory] = useState<EventCategory | "">("");
   const [maxReg, setMaxReg] = useState<string>("");
   const [budget, setBudget] = useState<string>("");
+  const [eventType, setEventType] = useState<EventType>("individual");
+  const [maxTeamSize, setMaxTeamSize] = useState<string>("");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -79,6 +84,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setCategory("");
     setMaxReg("");
     setBudget("");
+    setEventType("individual");
+    setMaxTeamSize("");
     if (posterPreview?.startsWith("blob:")) URL.revokeObjectURL(posterPreview);
     setPosterFile(null);
     setPosterPreview(null);
@@ -99,6 +106,13 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     if (!budget.trim() || Number.isNaN(budgetAmount) || budgetAmount < 0)
       return toast.error("Enter a valid approximate budget");
 
+    let teamSize: number | null = null;
+    if (eventType === "team") {
+      const size = parseInt(maxTeamSize, 10);
+      if (!size || size < 2 || size > 20) return toast.error("Maximum team size must be between 2 and 20");
+      teamSize = size;
+    }
+
     const [hh, mm] = time.split(":").map(Number);
     const dt = new Date(date);
     dt.setHours(hh || 0, mm || 0, 0, 0);
@@ -112,6 +126,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         category,
         maxRegistrations: max,
         budget: budgetAmount,
+        eventType,
+        maxTeamSize: teamSize,
         startsAt: dt,
         posterFile,
       });
@@ -220,6 +236,41 @@ export const CreateEventForm = ({ onCreate }: Props) => {
             </Select>
           </div>
         </div>
+
+        <div className="space-y-2">
+          <Label>Event Type</Label>
+          <Select
+            value={eventType}
+            onValueChange={(v) => {
+              setEventType(v as EventType);
+              if (v === "individual") setMaxTeamSize("");
+            }}
+          >
+            <SelectTrigger className="h-11 bg-secondary/60 border-border/60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="individual">Individual Event</SelectItem>
+              <SelectItem value="team">Team Event</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {eventType === "team" && (
+          <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <Label htmlFor="maxTeamSize">Maximum Team Size</Label>
+            <Input
+              id="maxTeamSize"
+              type="number"
+              min={2}
+              max={20}
+              value={maxTeamSize}
+              onChange={(e) => setMaxTeamSize(e.target.value)}
+              placeholder="e.g. 4"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">

@@ -1,4 +1,5 @@
 import type { EventCategory, EventStatus } from "@/data/events";
+import type { EventType, TeamRegistrationDetails } from "@/data/teamRegistration";
 
 export type ManagerStatus = EventStatus;
 
@@ -10,6 +11,7 @@ export interface Registrant {
   branch: string;
   semester: number;
   registeredAt: string;
+  teamDetails?: TeamRegistrationDetails | null;
 }
 
 export interface ManagerEvent {
@@ -21,6 +23,8 @@ export interface ManagerEvent {
   venue: string;
   category: EventCategory;
   maxRegistrations: number;
+  eventType: EventType;
+  maxTeamSize: number | null;
   budget?: number | null;
   status: ManagerStatus;
   rejectionReason?: string;
