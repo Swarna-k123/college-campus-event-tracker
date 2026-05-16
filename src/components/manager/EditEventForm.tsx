@@ -25,6 +25,7 @@ export type EditEventSubmitPayload = {
   venue: string;
   category: EventCategory;
   maxRegistrations: number;
+  budget: number;
   startsAt: Date;
   posterFile: File | null;
 };
@@ -49,6 +50,7 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
   const [venue, setVenue] = useState(event.venue);
   const [category, setCategory] = useState<EventCategory>(event.category);
   const [maxReg, setMaxReg] = useState(String(event.maxRegistrations));
+  const [budget, setBudget] = useState(event.budget != null ? String(event.budget) : "");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string>(event.poster);
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +85,9 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
     if (!venue.trim()) return toast.error("Enter a venue");
     const max = parseInt(maxReg, 10);
     if (!max || max < 1 || max > 10000) return toast.error("Max registrations must be 1–10,000");
+    const budgetAmount = parseFloat(budget);
+    if (!budget.trim() || Number.isNaN(budgetAmount) || budgetAmount < 0)
+      return toast.error("Enter a valid approximate budget");
 
     const [hh, mm] = time.split(":").map(Number);
     const dt = new Date(date);
@@ -96,6 +101,7 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
         venue: venue.trim(),
         category,
         maxRegistrations: max,
+        budget: budgetAmount,
         startsAt: dt,
         posterFile,
       });
@@ -189,17 +195,32 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
             </Select>
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="edit-max">Max Registrations</Label>
-          <Input
-            id="edit-max"
-            type="number"
-            min={1}
-            max={10000}
-            value={maxReg}
-            onChange={(e) => setMaxReg(e.target.value)}
-            className="bg-secondary/60 border-border/60 h-11"
-          />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-max">Max Registrations</Label>
+            <Input
+              id="edit-max"
+              type="number"
+              min={1}
+              max={10000}
+              value={maxReg}
+              onChange={(e) => setMaxReg(e.target.value)}
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-budget">Approximate Budget</Label>
+            <Input
+              id="edit-budget"
+              type="number"
+              min={0}
+              step="0.01"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="Enter estimated budget"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
           <Button type="submit" disabled={submitting} className="gap-2">

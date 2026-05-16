@@ -21,6 +21,7 @@ export interface ManagerEvent {
   venue: string;
   category: EventCategory;
   maxRegistrations: number;
+  budget?: number | null;
   status: ManagerStatus;
   rejectionReason?: string;
   registrants: Registrant[];

@@ -22,6 +22,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { EventCategory } from "@/data/events";
 import type { ManagerEvent } from "@/data/managerEvents";
@@ -349,7 +356,7 @@ export const StudentDashboard = () => {
     const sem = parseInt(semester, 10);
     if (!phone.trim()) return toast.error("Phone is required");
     if (!branch.trim()) return toast.error("Branch is required");
-    if (!sem || sem < 1 || sem > 12) return toast.error("Semester must be 1–12");
+    if (!sem || sem < 1 || sem > 8) return toast.error("Semester must be 1–8");
     if (myRegistrationEventIds.includes(registerTarget.id)) {
       toast.error("You have already registered for this event.");
       return;
@@ -667,16 +674,19 @@ export const StudentDashboard = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="semester">Semester (1–12)</Label>
-              <Input
-                id="semester"
-                type="number"
-                min={1}
-                max={12}
-                value={semester}
-                onChange={(e) => setSemester(e.target.value)}
-                className="bg-secondary/60 border-border/60"
-              />
+              <Label htmlFor="semester">Semester</Label>
+              <Select value={semester} onValueChange={setSemester}>
+                <SelectTrigger id="semester" className="bg-secondary/60 border-border/60">
+                  <SelectValue placeholder="Select semester (1–8)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      Semester {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

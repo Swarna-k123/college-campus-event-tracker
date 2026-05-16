@@ -24,6 +24,7 @@ export type CreateEventSubmitPayload = {
   venue: string;
   category: EventCategory;
   maxRegistrations: number;
+  budget: number;
   startsAt: Date;
   posterFile: File;
 };
@@ -43,6 +44,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [venue, setVenue] = useState("");
   const [category, setCategory] = useState<EventCategory | "">("");
   const [maxReg, setMaxReg] = useState<string>("");
+  const [budget, setBudget] = useState<string>("");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -76,6 +78,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setVenue("");
     setCategory("");
     setMaxReg("");
+    setBudget("");
     if (posterPreview?.startsWith("blob:")) URL.revokeObjectURL(posterPreview);
     setPosterFile(null);
     setPosterPreview(null);
@@ -92,6 +95,9 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     if (!category) return toast.error("Select a category");
     const max = parseInt(maxReg, 10);
     if (!max || max < 1 || max > 10000) return toast.error("Max registrations must be 1–10,000");
+    const budgetAmount = parseFloat(budget);
+    if (!budget.trim() || Number.isNaN(budgetAmount) || budgetAmount < 0)
+      return toast.error("Enter a valid approximate budget");
 
     const [hh, mm] = time.split(":").map(Number);
     const dt = new Date(date);
@@ -105,6 +111,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         venue: venue.trim(),
         category,
         maxRegistrations: max,
+        budget: budgetAmount,
         startsAt: dt,
         posterFile,
       });
@@ -214,18 +221,33 @@ export const CreateEventForm = ({ onCreate }: Props) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="max">Max Registrations</Label>
-          <Input
-            id="max"
-            type="number"
-            min={1}
-            max={10000}
-            value={maxReg}
-            onChange={(e) => setMaxReg(e.target.value)}
-            placeholder="e.g. 200"
-            className="bg-secondary/60 border-border/60 h-11"
-          />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="max">Max Registrations</Label>
+            <Input
+              id="max"
+              type="number"
+              min={1}
+              max={10000}
+              value={maxReg}
+              onChange={(e) => setMaxReg(e.target.value)}
+              placeholder="e.g. 200"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="budget">Approximate Budget</Label>
+            <Input
+              id="budget"
+              type="number"
+              min={0}
+              step="0.01"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="Enter estimated budget"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">

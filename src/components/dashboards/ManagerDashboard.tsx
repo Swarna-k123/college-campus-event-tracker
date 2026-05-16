@@ -141,6 +141,20 @@ export const ManagerDashboard = () => {
     queryFn: () => fetchEventRegistrantsForManager(viewing!.id),
   });
 
+  const { data: managerClubName } = useQuery({
+    queryKey: ["manager-club-name", user?.clubId],
+    enabled: !!user?.clubId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clubs")
+        .select("name")
+        .eq("id", user!.clubId!)
+        .maybeSingle();
+      if (error) throw new Error(getSupabaseErrorMessage(error));
+      return data?.name ?? "Club";
+    },
+  });
+
   const stats = useMemo(() => {
     const totalRegs = events.reduce((s, e) => s + registrationCount(e), 0);
     return {
@@ -164,6 +178,7 @@ export const ManagerDashboard = () => {
       venue: payload.venue,
       category: payload.category,
       max_registrations: payload.maxRegistrations,
+      budget: payload.budget,
       status: "pending",
       club_id: user.clubId,
       created_by: user.id,
@@ -192,6 +207,7 @@ export const ManagerDashboard = () => {
         venue: payload.venue,
         category: payload.category,
         max_registrations: payload.maxRegistrations,
+        budget: payload.budget,
       })
       .eq("id", editing.id)
       .eq("created_by", user.id);
@@ -224,13 +240,8 @@ export const ManagerDashboard = () => {
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div className="flex-1 rounded-2xl border border-border/60 bg-gradient-card px-6 py-6 md:px-8 md:py-7 shadow-soft backdrop-blur-xl">
           <p className="text-xl md:text-2xl font-semibold tracking-tight">
-            Welcome back, {user?.name ?? "Club Manager"}
+            Welcome back, {managerClubName ?? user?.clubName ?? events[0]?.club ?? "Club"}
           </p>
-          {user?.clubName && (
-            <p className="text-sm md:text-base text-muted-foreground mt-2">
-              Managing: {user.clubName}
-            </p>
-          )}
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-4">CampusHub</h1>
           <p className="text-base md:text-lg text-muted-foreground mt-2">
             Club Management Dashboard

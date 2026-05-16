@@ -13,6 +13,7 @@ import {
   Building2,
   Tag,
   Loader2,
+  IndianRupee,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,15 @@ type ConflictInfo = {
 };
 
 const EVENT_WINDOW_MINUTES = 180;
+
+const formatBudget = (amount: number | null | undefined) => {
+  if (amount == null) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
 
 const statusMeta = {
   approved: { label: "Approved", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
@@ -103,6 +113,10 @@ const EventReviewCard = ({
           <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{event.venue}</p>
           <p className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" />{event.category}</p>
           <p className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />Cap {event.maxRegistrations}</p>
+          <p className="flex items-center gap-1.5 col-span-2">
+            <IndianRupee className="h-3.5 w-3.5" />
+            Budget: {formatBudget(event.budget)}
+          </p>
         </div>
 
         {event.status === "rejected" && event.rejectionReason && (
@@ -262,10 +276,7 @@ export const AdminDashboard = () => {
   const handleApprove = async (id: string) => {
     if (!user?.id) return;
     const target = events.find((e) => e.id === id);
-    if (!target || target.clubId !== user.clubId) {
-      toast.error("You can only approve events for your assigned club.");
-      return;
-    }
+    if (!target) return;
     const { error: upErr } = await supabase
       .from("events")
       .update({
@@ -287,10 +298,6 @@ export const AdminDashboard = () => {
 
   const submitReject = async () => {
     if (!rejectTarget || !user?.id) return;
-    if (rejectTarget.clubId !== user.clubId) {
-      toast.error("You can only reject events for your assigned club.");
-      return;
-    }
     if (!reason.trim() || reason.trim().length < 5) {
       toast.error("Please provide a reason (min 5 characters)");
       return;
@@ -376,7 +383,7 @@ export const AdminDashboard = () => {
                     onApprove={handleApprove}
                     onReject={setRejectTarget}
                     conflict={pendingConflictMap.get(e.id)}
-                    canReview={e.clubId === user?.clubId}
+                    canReview
                   />
                 ))}
               </div>

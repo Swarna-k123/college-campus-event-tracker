@@ -12,6 +12,7 @@ export type EventRow = {
   venue: string;
   category: EventCategory;
   max_registrations: number;
+  budget: number | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
   club_id: string;
