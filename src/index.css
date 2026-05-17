@@ -8,43 +8,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 230 35% 7%;
-    --foreground: 220 20% 96%;
+    --background: 225 40% 6%;
+    --foreground: 215 25% 95%;
 
-    --card: 230 30% 11%;
-    --card-foreground: 220 20% 96%;
+    --card: 225 35% 10%;
+    --card-foreground: 215 25% 95%;
 
-    --popover: 230 30% 11%;
-    --popover-foreground: 220 20% 96%;
+    --popover: 225 35% 10%;
+    --popover-foreground: 215 25% 95%;
 
-    --primary: 252 90% 67%;
-    --primary-foreground: 230 35% 7%;
+    --primary: 260 95% 65%;
+    --primary-foreground: 225 40% 6%;
 
-    --secondary: 230 25% 16%;
-    --secondary-foreground: 220 20% 96%;
+    --secondary: 225 30% 15%;
+    --secondary-foreground: 215 25% 95%;
 
-    --muted: 230 20% 18%;
-    --muted-foreground: 220 12% 65%;
+    --muted: 225 25% 18%;
+    --muted-foreground: 215 15% 60%;
 
-    --accent: 190 95% 55%;
-    --accent-foreground: 230 35% 7%;
+    --accent: 185 100% 50%;
+    --accent-foreground: 225 40% 6%;
 
-    --destructive: 0 75% 60%;
-    --destructive-foreground: 220 20% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 215 25% 95%;
 
-    --border: 230 20% 20%;
-    --input: 230 20% 18%;
-    --ring: 252 90% 67%;
+    --border: 225 25% 22%;
+    --input: 225 25% 16%;
+    --ring: 260 95% 65%;
 
-    --radius: 0.9rem;
+    --radius: 0.95rem;
 
-    --gradient-bg: radial-gradient(1200px 600px at 10% -10%, hsl(252 90% 25% / 0.55), transparent 60%),
-                   radial-gradient(900px 500px at 100% 10%, hsl(190 95% 30% / 0.35), transparent 55%),
-                   linear-gradient(180deg, hsl(230 40% 6%), hsl(230 35% 9%));
-    --gradient-primary: linear-gradient(135deg, hsl(252 90% 67%), hsl(190 95% 55%));
-    --gradient-card: linear-gradient(160deg, hsl(230 30% 13% / 0.9), hsl(230 30% 9% / 0.9));
-    --shadow-soft: 0 10px 30px -12px hsl(230 80% 2% / 0.6);
-    --shadow-glow: 0 0 40px -8px hsl(252 90% 67% / 0.45);
+    --gradient-bg: radial-gradient(1400px 700px at 5% -5%, hsl(260 90% 25% / 0.6), transparent 60%),
+                   radial-gradient(1000px 600px at 95% 15%, hsl(185 95% 25% / 0.4), transparent 60%),
+                   radial-gradient(800px 400px at 50% 100%, hsl(270 80% 20% / 0.3), transparent 70%),
+                   linear-gradient(180deg, hsl(225 40% 5%), hsl(225 35% 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(260 95% 65%), hsl(185 100% 50%));
+    --gradient-card: linear-gradient(160deg, hsl(225 35% 12% / 0.95), hsl(225 30% 8% / 0.9));
+    --shadow-soft: 0 12px 35px -12px hsl(225 80% 2% / 0.5);
+    --shadow-glow: 0 0 50px -8px hsl(260 95% 65% / 0.5);
 
     --sidebar-background: 0 0% 98%;
 
@@ -112,5 +113,65 @@ All colors MUST be HSL.
     background: var(--gradient-bg);
     background-attachment: fixed;
     min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 50px -8px hsl(260 95% 65% / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 70px -8px hsl(260 95% 65% / 0.5);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slideInUp {
+    animation: slideInUp 0.4s ease-out;
+  }
+
+  .animate-slideInDown {
+    animation: slideInDown 0.4s ease-out;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
   }
 }

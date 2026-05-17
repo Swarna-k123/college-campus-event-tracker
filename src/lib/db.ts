@@ -15,6 +15,7 @@ export type EventRow = {
   max_registrations: number;
   event_type?: EventType | null;
   max_team_size?: number | null;
+  min_team_size?: number | null;
   budget: number | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;

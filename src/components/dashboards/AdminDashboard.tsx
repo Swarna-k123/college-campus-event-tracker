@@ -325,17 +325,19 @@ export const AdminDashboard = () => {
   const list = buckets[tab];
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div className="flex-1 rounded-2xl border border-border/60 bg-gradient-card px-6 py-6 md:px-8 md:py-7 shadow-soft backdrop-blur-xl">
-          <div className="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
-            <ShieldCheck className="h-3.5 w-3.5" /> Administrator
+    <div className="space-y-10">
+      <header className="relative rounded-3xl overflow-hidden border border-border/40 bg-gradient-card shadow-soft backdrop-blur-xl px-6 md:px-10 py-8 md:py-12">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-accent/10" />
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full bg-primary/20 text-primary border border-primary/40 font-medium mb-4">
+            <ShieldCheck className="h-4 w-4" /> Administrator
           </div>
-          <p className="text-xl md:text-2xl font-semibold tracking-tight mt-3">
-            Welcome back, {user?.name ?? "Admin"}
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
+            Welcome back, {user?.name ?? "Admin"} 🛡️
+          </h1>
+          <p className="text-muted-foreground mt-3 text-base leading-relaxed">
+            Review and manage all campus events and ensure quality control.
           </p>
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-4">CampusHub</h1>
-          <p className="text-base md:text-lg text-muted-foreground mt-2">Administration Dashboard</p>
         </div>
       </header>
 

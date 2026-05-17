@@ -66,11 +66,11 @@ const statusMeta: Record<ManagerStatus, { label: string; cls: string; icon: Reac
   },
 };
 
-async function loadManagerEvents(userId: string): Promise<ManagerDashboardEvent[]> {
+async function loadManagerEvents(clubId: string): Promise<ManagerDashboardEvent[]> {
   const { data: rows, error } = await supabase
     .from("events")
     .select("*, clubs ( name )")
-    .eq("created_by", userId)
+    .eq("club_id", clubId)
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(getSupabaseErrorMessage(error));
@@ -130,9 +130,9 @@ export const ManagerDashboard = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["manager-events", user?.id],
-    enabled: !!user?.id,
-    queryFn: () => loadManagerEvents(user!.id),
+    queryKey: ["manager-events", user?.clubId],
+    enabled: !!user?.clubId,
+    queryFn: () => loadManagerEvents(user!.clubId!),
   });
 
   const { data: viewingRegs = [], isLoading: viewingRegsLoading } = useQuery({
@@ -180,6 +180,7 @@ export const ManagerDashboard = () => {
       max_registrations: payload.maxRegistrations,
       budget: payload.budget,
       event_type: payload.eventType,
+      min_team_size: payload.eventType === "team" ? payload.minTeamSize : null,
       max_team_size: payload.eventType === "team" ? payload.maxTeamSize : null,
       status: "pending",
       club_id: user.clubId,
@@ -188,7 +189,7 @@ export const ManagerDashboard = () => {
     if (insErr) throw new Error(getSupabaseErrorMessage(insErr));
     toast.success("Event submitted for approval");
     setTab("events");
-    await queryClient.invalidateQueries({ queryKey: ["manager-events"] });
+    await queryClient.invalidateQueries({ queryKey: ["manager-events", user?.clubId] });
     await queryClient.invalidateQueries({ queryKey: ["admin-all-events"] });
     await queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
   };
@@ -211,22 +212,23 @@ export const ManagerDashboard = () => {
         max_registrations: payload.maxRegistrations,
         budget: payload.budget,
         event_type: payload.eventType,
+        min_team_size: payload.eventType === "team" ? payload.minTeamSize : null,
         max_team_size: payload.eventType === "team" ? payload.maxTeamSize : null,
       })
       .eq("id", editing.id)
-      .eq("created_by", user.id);
+      .eq("club_id", user.clubId);
 
     if (upErr) throw new Error(getSupabaseErrorMessage(upErr));
     toast.success("Event updated");
     setEditing(null);
-    await queryClient.invalidateQueries({ queryKey: ["manager-events"] });
+    await queryClient.invalidateQueries({ queryKey: ["manager-events", user?.clubId] });
     await queryClient.invalidateQueries({ queryKey: ["admin-all-events"] });
     await queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
   };
 
   const confirmDelete = async () => {
     if (!deleting || !user?.id) return;
-    const { error: delErr } = await supabase.from("events").delete().eq("id", deleting.id).eq("created_by", user.id);
+    const { error: delErr } = await supabase.from("events").delete().eq("id", deleting.id).eq("club_id", user.clubId);
     if (delErr) {
       toast.error(getSupabaseErrorMessage(delErr));
       return;
@@ -234,30 +236,33 @@ export const ManagerDashboard = () => {
     toast.success(`Deleted "${deleting.title}"`);
     if (viewing?.id === deleting.id) setViewing(null);
     setDeleting(null);
-    await queryClient.invalidateQueries({ queryKey: ["manager-events"] });
+    await queryClient.invalidateQueries({ queryKey: ["manager-events", user?.clubId] });
     await queryClient.invalidateQueries({ queryKey: ["admin-all-events"] });
     await queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
   };
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div className="flex-1 rounded-2xl border border-border/60 bg-gradient-card px-6 py-6 md:px-8 md:py-7 shadow-soft backdrop-blur-xl">
-          <p className="text-xl md:text-2xl font-semibold tracking-tight">
-            Welcome back, {managerClubName ?? user?.clubName ?? events[0]?.club ?? "Club"}
-          </p>
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-4">CampusHub</h1>
-          <p className="text-base md:text-lg text-muted-foreground mt-2">
-            Club Management Dashboard
-          </p>
+    <div className="space-y-10">
+      <header className="relative rounded-3xl overflow-hidden border border-border/40 bg-gradient-card shadow-soft backdrop-blur-xl px-6 md:px-10 py-8 md:py-12">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-accent/10" />
+        <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+          <div>
+            <p className="text-sm font-medium text-primary/80 mb-2">Welcome back,</p>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
+              {managerClubName ?? user?.clubName ?? events[0]?.club ?? "Club"} 🎯
+            </h1>
+            <p className="text-muted-foreground mt-3 text-base leading-relaxed">
+              Manage and monitor your club events with ease.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => setTab("create")}
+            className="h-12 rounded-xl gap-2 bg-gradient-primary text-primary-foreground border-0 shadow-glow hover:shadow-glow hover:opacity-90 font-semibold md:w-auto w-full justify-center"
+          >
+            <CalendarPlus className="h-5 w-5" /> New Event
+          </Button>
         </div>
-        <Button
-          type="button"
-          onClick={() => setTab("create")}
-          className="bg-gradient-primary text-primary-foreground border-0 gap-2 shadow-glow"
-        >
-          <CalendarPlus className="h-4 w-4" /> New Event
-        </Button>
       </header>
 
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
