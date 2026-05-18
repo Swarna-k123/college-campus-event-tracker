@@ -27,7 +27,6 @@ export type CreateEventSubmitPayload = {
   maxRegistrations: number;
   budget: number;
   eventType: EventType;
-  minTeamSize: number | null;
   maxTeamSize: number | null;
   startsAt: Date;
   posterFile: File;
@@ -51,7 +50,6 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [budget, setBudget] = useState<string>("");
   const [eventType, setEventType] = useState<EventType>("individual");
   const [maxTeamSize, setMaxTeamSize] = useState<string>("");
-  const [minTeamSize, setMinTeamSize] = useState<string>("");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -110,12 +108,9 @@ export const CreateEventForm = ({ onCreate }: Props) => {
 
     let teamSize: number | null = null;
     if (eventType === "team") {
-      const minSize = parseInt(minTeamSize, 10);
-      const maxSize = parseInt(maxTeamSize, 10);
-      if (!minSize || minSize < 2 || minSize > 20) return toast.error("Minimum team size must be between 2 and 20");
-      if (!maxSize || maxSize < 2 || maxSize > 20) return toast.error("Maximum team size must be between 2 and 20");
-      if (minSize > maxSize) return toast.error("Minimum team size cannot be greater than maximum team size");
-      teamSize = maxSize;
+      const size = parseInt(maxTeamSize, 10);
+      if (!size || size < 2 || size > 20) return toast.error("Maximum team size must be between 2 and 20");
+      teamSize = size;
     }
 
     const [hh, mm] = time.split(":").map(Number);
@@ -132,7 +127,6 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         maxRegistrations: max,
         budget: budgetAmount,
         eventType,
-        minTeamSize: eventType === "team" ? parseInt(minTeamSize, 10) : null,
         maxTeamSize: teamSize,
         startsAt: dt,
         posterFile,
@@ -249,10 +243,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
             value={eventType}
             onValueChange={(v) => {
               setEventType(v as EventType);
-                    if (v === "individual") {
-                      setMaxTeamSize("");
-                      setMinTeamSize("");
-                    }
+              if (v === "individual") setMaxTeamSize("");
             }}
           >
             <SelectTrigger className="h-11 bg-secondary/60 border-border/60">
@@ -266,33 +257,18 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         </div>
 
         {eventType === "team" && (
-          <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 grid sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="minTeamSize">Minimum Team Size</Label>
-              <Input
-                id="minTeamSize"
-                type="number"
-                min={2}
-                max={20}
-                value={minTeamSize}
-                onChange={(e) => setMinTeamSize(e.target.value)}
-                placeholder="e.g. 3"
-                className="bg-secondary/60 border-border/60 h-11"
-              />
-            </div>
-            <div>
-              <Label htmlFor="maxTeamSize">Maximum Team Size</Label>
-              <Input
-                id="maxTeamSize"
-                type="number"
-                min={2}
-                max={20}
-                value={maxTeamSize}
-                onChange={(e) => setMaxTeamSize(e.target.value)}
-                placeholder="e.g. 4"
-                className="bg-secondary/60 border-border/60 h-11"
-              />
-            </div>
+          <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <Label htmlFor="maxTeamSize">Maximum Team Size</Label>
+            <Input
+              id="maxTeamSize"
+              type="number"
+              min={2}
+              max={20}
+              value={maxTeamSize}
+              onChange={(e) => setMaxTeamSize(e.target.value)}
+              placeholder="e.g. 4"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
           </div>
         )}
 

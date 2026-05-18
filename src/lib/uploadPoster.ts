@@ -10,9 +10,7 @@ const BUCKET = "event-posters";
 export async function uploadEventPoster(file: File, userId: string): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const safeExt = ["jpg", "jpeg", "png", "webp", "gif"].includes(ext) ? ext : "jpg";
-  // Browser-compatible UUID: timestamp + random suffix
-  const uniqueId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
-  const path = `${userId}/${uniqueId}.${safeExt}`;
+  const path = `${userId}/${crypto.randomUUID()}.${safeExt}`;
 
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: "3600",

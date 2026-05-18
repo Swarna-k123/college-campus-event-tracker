@@ -106,8 +106,10 @@ async function ensureProfileFromSession(session: Session) {
   });
 
   if (role === "club_manager" && meta.access_code_id) {
-    // Previously we marked manager access codes as one-time (setting `is_used`).
-    // Access codes are now reusable, so do not update `club_manager_access` here.
+    await supabase
+      .from("club_manager_access")
+      .update({ is_used: true })
+      .eq("id", meta.access_code_id);
   }
 }
 
@@ -120,12 +122,13 @@ async function resolveClubIdFromAccessCode(accessCode: string): Promise<{
 
   const { data: accessRow, error } = await supabase
     .from("club_manager_access")
-    .select("id, club_name")
+    .select("id, club_name, is_used")
     .eq("access_code", code)
     .maybeSingle();
 
   if (error) throw new Error(getSupabaseErrorMessage(error));
   if (!accessRow) throw new Error("Invalid manager access code");
+  if (accessRow.is_used) throw new Error("This manager access code has already been used");
 
   const { data: club, error: clubError } = await supabase
     .from("clubs")
@@ -143,8 +146,11 @@ async function resolveClubIdFromAccessCode(accessCode: string): Promise<{
 }
 
 async function markManagerAccessCodeUsed(accessRowId: string) {
-  // Access codes are reusable — do not update `is_used` anymore.
-  return;
+  const { error } = await supabase
+    .from("club_manager_access")
+    .update({ is_used: true })
+    .eq("id", accessRowId);
+  if (error) throw new Error(getSupabaseErrorMessage(error));
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {

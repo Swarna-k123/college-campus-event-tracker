@@ -14,9 +14,12 @@ import {
   Tag,
   Loader2,
   IndianRupee,
+  Activity,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,6 +52,25 @@ type ConflictInfo = {
 
 const EVENT_WINDOW_MINUTES = 180;
 
+const getAcademicYearStart = () => {
+  const now = new Date();
+  const year = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  return new Date(year, 6, 1);
+};
+
+type ClubGroup = {
+  clubId: string;
+  clubName: string;
+  stats: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    budgetUsed: number;
+  };
+  events: AdminEvent[];
+};
+
 const formatBudget = (amount: number | null | undefined) => {
   if (amount == null) return "—";
   return new Intl.NumberFormat("en-IN", {
@@ -77,6 +99,7 @@ const EventReviewCard = ({
   conflict?: ConflictInfo;
   canReview: boolean;
 }) => {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const meta = statusMeta[event.status];
   const eventStart = new Date(event.date);
   const eventEnd = new Date(eventStart.getTime() + EVENT_WINDOW_MINUTES * 60_000);
@@ -85,95 +108,132 @@ const EventReviewCard = ({
     ? new Date(approvedStart.getTime() + EVENT_WINDOW_MINUTES * 60_000)
     : null;
   return (
-    <article className="flex flex-col rounded-2xl overflow-hidden border border-border/60 bg-gradient-card shadow-soft backdrop-blur-xl transition-all hover:-translate-y-1 hover:shadow-glow hover:border-primary/40">
-      <div className="relative aspect-[16/9] overflow-hidden">
-        <img src={event.poster} alt="" className="h-full w-full object-cover" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/20 to-transparent" />
-        <Badge variant="outline" className={cn("absolute top-3 left-3 backdrop-blur-md", meta.cls)}>
-          {meta.label}
-        </Badge>
-        <Badge variant="outline" className="absolute top-3 right-3 backdrop-blur-md bg-background/60 border-border/60">
-          {event.category}
-        </Badge>
-      </div>
-      <div className="flex flex-col flex-1 p-5 gap-3">
-        <div>
-          <h3 className="font-semibold text-lg leading-snug">{event.title}</h3>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5" /> {event.club}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manager: {event.managerName}
-            {event.managerEmail ? ` (${event.managerEmail})` : ""}
-          </p>
+    <>
+      <article className="group flex flex-col rounded-2xl overflow-hidden border border-border/40 bg-background/40 shadow-soft backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow hover:border-primary/40 relative">
+        <div className="relative aspect-[16/9] overflow-hidden">
+          <img src={event.poster} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent transition-opacity duration-300 group-hover:opacity-80" />
+          <Badge variant="outline" className={cn("absolute top-3 left-3 backdrop-blur-md shadow-sm border-0", meta.cls)}>
+            {meta.label}
+          </Badge>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">{event.description}</p>
-        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
-          <p className="flex items-center gap-1.5"><CalIcon className="h-3.5 w-3.5" />{format(new Date(event.date), "MMM d, p")}</p>
-          <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{event.venue}</p>
-          <p className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" />{event.category}</p>
-          <p className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />Cap {event.maxRegistrations}</p>
-          <p className="flex items-center gap-1.5 col-span-2">
-            <IndianRupee className="h-3.5 w-3.5" />
-            Budget: {formatBudget(event.budget)}
-          </p>
-        </div>
-
-        {event.status === "rejected" && event.rejectionReason && (
-          <div className="text-xs rounded-lg bg-destructive/10 border border-destructive/30 text-destructive p-2 flex gap-2">
-            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>{event.rejectionReason}</span>
-          </div>
-        )}
-
-        {event.status === "pending" && conflict && approvedStart && approvedEnd && (
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200 space-y-1.5">
-            <p className="font-semibold">⚠ Potential Venue Conflict Detected</p>
-            <p className="text-amber-100">Existing Approved Event:</p>
-            <p>Event: {conflict.approvedEvent.title}</p>
-            <p>Club: {conflict.approvedEvent.club}</p>
-            <p>Venue: {conflict.approvedEvent.venue}</p>
-            <p>
-              Time: {format(approvedStart, "MMM d, p")} - {format(approvedEnd, "p")}
-            </p>
-            <p>Status: Approved</p>
-            <p className="text-amber-100 pt-1">Pending Event:</p>
-            <p>Event: {event.title}</p>
-            <p>Club: {event.club}</p>
-            <p>Venue: {event.venue}</p>
-            <p>
-              Time: {format(eventStart, "MMM d, p")} - {format(eventEnd, "p")}
+        <div className="flex flex-col flex-1 p-5 gap-3">
+          <div>
+            <h3 className="font-semibold text-lg leading-snug truncate group-hover:text-primary transition-colors">{event.title}</h3>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> {event.club}
             </p>
           </div>
-        )}
-
-        {event.status === "pending" && onApprove && onReject && (
-          <div className="flex items-center gap-2 pt-2 mt-auto">
-            <Button
-              size="sm"
-              type="button"
-              onClick={() => onReject(event)}
-              disabled={!canReview}
-              className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0"
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{event.description}</p>
+          
+          <div className="pt-3 mt-auto">
+            <Button 
+              variant="secondary" 
+              className="w-full bg-secondary/50 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group-hover:shadow-md"
+              onClick={() => setDetailsOpen(true)}
             >
-              <XCircle className="h-4 w-4 mr-1" /> Reject
-            </Button>
-            <Button
-              size="sm"
-              type="button"
-              onClick={() => onApprove(event.id)}
-              disabled={!canReview}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-600/90 text-white border-0"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+              View Details
             </Button>
           </div>
-        )}
-        {event.status === "pending" && !canReview && (
-          <p className="text-xs text-muted-foreground pt-2 mt-auto">Handled by another admin</p>
-        )}
-      </div>
-    </article>
+        </div>
+      </article>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px] bg-gradient-card border-border/60 p-0 overflow-hidden shadow-2xl backdrop-blur-3xl">
+          <div className="relative h-48 sm:h-64 w-full">
+            <img src={event.poster} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+            <Badge variant="outline" className={cn("absolute top-4 left-4 backdrop-blur-md text-sm py-1 px-3 border-0", meta.cls)}>
+              {meta.label}
+            </Badge>
+          </div>
+          
+          <div className="p-6 pt-0 space-y-6 max-h-[60vh] overflow-y-auto">
+            <DialogHeader className="space-y-2 text-left">
+              <DialogTitle className="text-2xl font-bold">{event.title}</DialogTitle>
+              <DialogDescription className="flex items-center gap-2 text-sm">
+                <Building2 className="h-4 w-4" /> {event.club}
+                <span className="text-muted-foreground ml-2">|</span>
+                <span className="text-muted-foreground ml-2">Manager: {event.managerName}</span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {event.description}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/20 p-4 rounded-xl border border-border/40">
+              <div className="space-y-1">
+                <p className="text-muted-foreground flex items-center gap-2"><CalIcon className="h-4 w-4" /> Date & Time</p>
+                <p className="font-medium">{format(eventStart, "MMM d, yyyy")}</p>
+                <p className="text-muted-foreground text-xs">{format(eventStart, "p")} - {format(eventEnd, "p")}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Venue</p>
+                <p className="font-medium">{event.venue}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground flex items-center gap-2"><Tag className="h-4 w-4" /> Category</p>
+                <p className="font-medium">{event.category}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Budget</p>
+                <p className="font-medium">{formatBudget(event.budget)}</p>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <p className="text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Capacity</p>
+                <p className="font-medium">{event.maxRegistrations} attendees</p>
+              </div>
+            </div>
+
+            {event.status === "rejected" && event.rejectionReason && (
+              <div className="text-sm rounded-lg bg-destructive/10 border border-destructive/30 text-destructive p-3 flex gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{event.rejectionReason}</span>
+              </div>
+            )}
+
+            {event.status === "pending" && conflict && approvedStart && approvedEnd && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200 space-y-2">
+                <p className="font-semibold flex items-center gap-2"><AlertCircle className="h-4 w-4"/> Venue Conflict Detected</p>
+                <div className="bg-background/40 p-3 rounded-lg border border-border/30">
+                  <p className="text-amber-100/70 text-xs mb-1">Conflicts with Approved Event:</p>
+                  <p className="font-medium">{conflict.approvedEvent.title} ({conflict.approvedEvent.club})</p>
+                  <p className="text-xs text-amber-100/80 mt-1">
+                    {format(approvedStart, "MMM d, p")} - {format(approvedEnd, "p")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {event.status === "pending" && onApprove && onReject && (
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => { setDetailsOpen(false); onReject(event); }}
+                  disabled={!canReview}
+                  variant="outline"
+                  className="flex-1 bg-destructive/10 hover:bg-destructive text-destructive hover:text-destructive-foreground border-destructive/20 transition-all"
+                >
+                  <XCircle className="h-4 w-4 mr-2" /> Reject Event
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => { setDetailsOpen(false); onApprove(event.id); }}
+                  disabled={!canReview}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white border-0 transition-all shadow-[0_0_20px_rgba(5,150,105,0.3)] hover:shadow-[0_0_25px_rgba(5,150,105,0.5)]"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Approve Event
+                </Button>
+              </div>
+            )}
+            {event.status === "pending" && !canReview && (
+              <p className="text-sm text-center text-muted-foreground pt-2">This event was handled by another admin.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
@@ -229,6 +289,7 @@ export const AdminDashboard = () => {
   const [rejectTarget, setRejectTarget] = useState<AdminEvent | null>(null);
   const [reason, setReason] = useState("");
   const [tab, setTab] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     data: events = [] as AdminEvent[],
@@ -324,20 +385,76 @@ export const AdminDashboard = () => {
 
   const list = buckets[tab];
 
+  const groupedList = useMemo(() => {
+    const groups = new Map<string, ClubGroup>();
+    const acYearStart = getAcademicYearStart();
+    
+    events.forEach(e => {
+      if (!groups.has(e.clubId)) {
+        groups.set(e.clubId, {
+          clubId: e.clubId,
+          clubName: e.club,
+          stats: { total: 0, pending: 0, approved: 0, rejected: 0, budgetUsed: 0 },
+          events: []
+        });
+      }
+      const group = groups.get(e.clubId)!;
+      group.stats.total++;
+      if (e.status === "pending") group.stats.pending++;
+      if (e.status === "approved") {
+        group.stats.approved++;
+        const eventDate = new Date(e.date);
+        if (eventDate >= acYearStart && e.budget) {
+          group.stats.budgetUsed += e.budget;
+        }
+      }
+      if (e.status === "rejected") group.stats.rejected++;
+    });
+
+    const normalizedQuery = searchQuery.toLowerCase().trim();
+
+    list.forEach(e => {
+      const matchesSearch = !normalizedQuery || 
+        e.title.toLowerCase().includes(normalizedQuery) || 
+        e.club.toLowerCase().includes(normalizedQuery);
+
+      if (matchesSearch) {
+        const group = groups.get(e.clubId);
+        if (group) {
+          group.events.push(e);
+        }
+      }
+    });
+
+    return Array.from(groups.values())
+      .filter(g => g.events.length > 0)
+      .sort((a, b) => a.clubName.localeCompare(b.clubName));
+  }, [events, list, searchQuery]);
+
   return (
-    <div className="space-y-10">
-      <header className="relative rounded-3xl overflow-hidden border border-border/40 bg-gradient-card shadow-soft backdrop-blur-xl px-6 md:px-10 py-8 md:py-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-accent/10" />
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full bg-primary/20 text-primary border border-primary/40 font-medium mb-4">
-            <ShieldCheck className="h-4 w-4" /> Administrator
+    <div className="space-y-8">
+      <header className="rounded-2xl border border-border/60 bg-gradient-card px-6 py-6 md:px-8 md:py-7 shadow-soft backdrop-blur-xl">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+              <ShieldCheck className="h-3.5 w-3.5" /> Administrator
+            </div>
+            <p className="text-xl md:text-2xl font-semibold tracking-tight mt-3">
+              Welcome back, {user?.name ?? "Admin"}
+            </p>
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-4">CampusHub</h1>
+            <p className="text-base md:text-lg text-muted-foreground mt-2">Administration Dashboard</p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
-            Welcome back, {user?.name ?? "Admin"} 🛡️
-          </h1>
-          <p className="text-muted-foreground mt-3 text-base leading-relaxed">
-            Review and manage all campus events and ensure quality control.
-          </p>
+          <div className="w-full md:w-80 mt-2 md:mt-0 relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none blur-md" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors z-20" />
+            <Input
+              placeholder="Search clubs or events..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 bg-background/60 border-border/60 hover:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/50 transition-all rounded-xl backdrop-blur-md shadow-sm h-11 text-sm relative z-10"
+            />
+          </div>
         </div>
       </header>
 
@@ -367,8 +484,8 @@ export const AdminDashboard = () => {
             <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">All</TabsTrigger>
           </TabsList>
 
-          <TabsContent value={tab} className="mt-0">
-            {list.length === 0 ? (
+          <TabsContent value={tab} className="mt-0 space-y-12">
+            {groupedList.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border bg-card/40 p-16 text-center">
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary/60 text-muted-foreground mb-3">
                   <CheckCircle2 className="h-6 w-6" />
@@ -377,18 +494,64 @@ export const AdminDashboard = () => {
                 <p className="text-sm text-muted-foreground mt-1">There are no events in this bucket.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {list.map((e) => (
-                  <EventReviewCard
-                    key={e.id}
-                    event={e}
-                    onApprove={handleApprove}
-                    onReject={setRejectTarget}
-                    conflict={pendingConflictMap.get(e.id)}
-                    canReview
-                  />
-                ))}
-              </div>
+              groupedList.map((group) => (
+                <section key={group.clubId} className="space-y-6">
+                  {/* Club Summary Card */}
+                  <div className="bg-gradient-card border border-border/60 rounded-2xl p-6 shadow-soft backdrop-blur-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
+                        <Building2 className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold tracking-tight">{group.clubName}</h2>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                          <Activity className="h-3.5 w-3.5" /> 
+                          Overview & Statistics
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="flex flex-col bg-background/50 rounded-xl p-4 border border-border/40">
+                        <span className="text-xs text-muted-foreground font-medium mb-1">Total Events</span>
+                        <span className="text-2xl font-semibold">{group.stats.total}</span>
+                      </div>
+                      <div className="flex flex-col bg-amber-500/5 rounded-xl p-4 border border-amber-500/20">
+                        <span className="text-xs text-amber-500/80 font-medium mb-1">Pending</span>
+                        <span className="text-2xl font-semibold text-amber-500">{group.stats.pending}</span>
+                      </div>
+                      <div className="flex flex-col bg-emerald-500/5 rounded-xl p-4 border border-emerald-500/20">
+                        <span className="text-xs text-emerald-500/80 font-medium mb-1">Approved</span>
+                        <span className="text-2xl font-semibold text-emerald-500">{group.stats.approved}</span>
+                      </div>
+                      <div className="flex flex-col bg-destructive/5 rounded-xl p-4 border border-destructive/20">
+                        <span className="text-xs text-destructive/80 font-medium mb-1">Rejected</span>
+                        <span className="text-2xl font-semibold text-destructive">{group.stats.rejected}</span>
+                      </div>
+                      <div className="flex flex-col bg-primary/5 rounded-xl p-4 border border-primary/20 md:col-span-1 col-span-2">
+                        <span className="text-xs text-primary/80 font-medium mb-1">Yearly Budget Used</span>
+                        <span className="text-xl sm:text-2xl font-semibold text-primary">
+                          {formatBudget(group.stats.budgetUsed)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Club Events Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {group.events.map((e) => (
+                      <EventReviewCard
+                        key={e.id}
+                        event={e}
+                        onApprove={handleApprove}
+                        onReject={setRejectTarget}
+                        conflict={pendingConflictMap.get(e.id)}
+                        canReview
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))
             )}
           </TabsContent>
         </Tabs>

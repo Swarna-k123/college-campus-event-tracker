@@ -28,7 +28,6 @@ export type EditEventSubmitPayload = {
   maxRegistrations: number;
   budget: number;
   eventType: EventType;
-  minTeamSize: number | null;
   maxTeamSize: number | null;
   startsAt: Date;
   posterFile: File | null;
@@ -58,11 +57,6 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
   const [eventType, setEventType] = useState<EventType>(event.eventType ?? "individual");
   const [maxTeamSize, setMaxTeamSize] = useState(
     event.maxTeamSize != null ? String(event.maxTeamSize) : ""
-  );
-  const [minTeamSize, setMinTeamSize] = useState(
-    // event may have minTeamSize if mapped
-    // @ts-ignore
-    event.minTeamSize != null ? String((event as any).minTeamSize) : ""
   );
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string>(event.poster);
@@ -104,11 +98,8 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
 
     let teamSize: number | null = null;
     if (eventType === "team") {
-      const minSize = parseInt(minTeamSize, 10);
       const size = parseInt(maxTeamSize, 10);
-      if (!minSize || minSize < 2 || minSize > 20) return toast.error("Minimum team size must be between 2 and 20");
       if (!size || size < 2 || size > 20) return toast.error("Maximum team size must be between 2 and 20");
-      if (minSize > size) return toast.error("Minimum team size cannot be greater than maximum team size");
       teamSize = size;
     }
 
@@ -126,7 +117,6 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
         maxRegistrations: max,
         budget: budgetAmount,
         eventType,
-        minTeamSize: eventType === "team" ? parseInt(minTeamSize, 10) : null,
         maxTeamSize: teamSize,
         startsAt: dt,
         posterFile,
@@ -227,10 +217,7 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
             value={eventType}
             onValueChange={(v) => {
               setEventType(v as EventType);
-              if (v === "individual") {
-                setMaxTeamSize("");
-                setMinTeamSize("");
-              }
+              if (v === "individual") setMaxTeamSize("");
             }}
           >
             <SelectTrigger className="h-11 bg-secondary/60 border-border/60">
@@ -244,33 +231,18 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
         </div>
 
         {eventType === "team" && (
-          <div className="space-y-2 grid sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="edit-minTeamSize">Minimum Team Size</Label>
-              <Input
-                id="edit-minTeamSize"
-                type="number"
-                min={2}
-                max={20}
-                value={minTeamSize}
-                onChange={(e) => setMinTeamSize(e.target.value)}
-                placeholder="e.g. 3"
-                className="bg-secondary/60 border-border/60 h-11"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-maxTeamSize">Maximum Team Size</Label>
-              <Input
-                id="edit-maxTeamSize"
-                type="number"
-                min={2}
-                max={20}
-                value={maxTeamSize}
-                onChange={(e) => setMaxTeamSize(e.target.value)}
-                placeholder="e.g. 4"
-                className="bg-secondary/60 border-border/60 h-11"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-maxTeamSize">Maximum Team Size</Label>
+            <Input
+              id="edit-maxTeamSize"
+              type="number"
+              min={2}
+              max={20}
+              value={maxTeamSize}
+              onChange={(e) => setMaxTeamSize(e.target.value)}
+              placeholder="e.g. 4"
+              className="bg-secondary/60 border-border/60 h-11"
+            />
           </div>
         )}
 

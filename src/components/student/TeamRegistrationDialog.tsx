@@ -66,10 +66,8 @@ export const TeamRegistrationDialog = ({
   const [leaderBranch, setLeaderBranch] = useState("");
   const [members, setMembers] = useState<MemberForm[]>([]);
 
-  const minTeamSize = event?.minTeamSize ?? 1;
-  const maxTeamSize = event?.maxTeamSize ?? 1;
-  const minMembers = Math.max(0, (minTeamSize ?? 1) - 1);
-  const maxMembers = Math.max(0, (maxTeamSize ?? 1) - 1);
+  const maxTeamSize = event?.maxTeamSize ?? 2;
+  const maxMembers = Math.max(0, maxTeamSize - 1);
   const atMemberLimit = members.length >= maxMembers;
 
   useEffect(() => {
@@ -139,10 +137,6 @@ export const TeamRegistrationDialog = ({
       if (parsed) parsedMembers.push(parsed);
     }
 
-    const totalTeamSize = 1 + parsedMembers.length;
-    if (totalTeamSize < minTeamSize) throw new Error(`Team must have at least ${minTeamSize} members (including leader)`);
-    if (totalTeamSize > maxTeamSize) throw new Error(`Team can have at most ${maxTeamSize} members (including leader)`);
-
     await onSubmit({
       team_name: teamName.trim(),
       leader: {
@@ -158,12 +152,11 @@ export const TeamRegistrationDialog = ({
   };
 
   const memberHint = useMemo(
-    () => {
-      if (maxMembers === 0) return `This team size allows only the leader (team size: ${maxTeamSize}).`;
-      if (minMembers === maxMembers) return `Add exactly ${maxMembers} team member${maxMembers === 1 ? "" : "s"} (team size: ${maxTeamSize}).`;
-      return `Add between ${minMembers} and ${maxMembers} team members (team size: ${minTeamSize}-${maxTeamSize}).`;
-    },
-    [minMembers, maxMembers, minTeamSize, maxTeamSize]
+    () =>
+      maxMembers === 0
+        ? "This team size allows only the leader."
+        : `Add up to ${maxMembers} team member${maxMembers === 1 ? "" : "s"} (team size: ${maxTeamSize}).`,
+    [maxMembers, maxTeamSize]
   );
 
   if (!event) return null;
@@ -174,7 +167,7 @@ export const TeamRegistrationDialog = ({
         <DialogHeader>
           <DialogTitle>Team Registration</DialogTitle>
           <DialogDescription>
-            {event.title} — register your team (min {minTeamSize}, max {maxTeamSize} participants including leader).
+            {event.title} — register your team (max {maxTeamSize} participants including leader).
           </DialogDescription>
         </DialogHeader>
 

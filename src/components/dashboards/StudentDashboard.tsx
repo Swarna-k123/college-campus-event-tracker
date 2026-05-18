@@ -450,33 +450,29 @@ export const StudentDashboard = () => {
   };
 
   return (
-    <div className="space-y-12">
-      <header className="relative rounded-3xl overflow-hidden border border-border/40 bg-gradient-card shadow-soft backdrop-blur-xl px-6 md:px-10 py-8 md:py-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/5" />
-        <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-          <div>
-            <p className="text-sm font-medium text-primary/80 mb-2">Welcome back,</p>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary/80 bg-clip-text text-transparent">
-              {user?.name ?? "Student"} ✨
-            </h1>
-            <p className="text-muted-foreground mt-3 text-base leading-relaxed max-w-2xl">
-              Discover amazing events happening on campus and join your community.
-            </p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => setMyRegistrationsOpen(true)}
-            className="h-12 shrink-0 rounded-xl gap-2 bg-gradient-primary text-primary-foreground border-0 shadow-glow hover:shadow-glow hover:opacity-90 font-semibold md:w-auto w-full justify-center"
-          >
-            <CalendarCheck className="h-5 w-5" />
-            My Registrations
-            {myRegisteredEvents.length > 0 && (
-              <span className="ml-1 grid h-6 min-w-6 place-items-center rounded-full bg-background/30 px-2 text-xs font-bold">
-                {myRegisteredEvents.length}
-              </span>
-            )}
-          </Button>
+    <div className="space-y-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Welcome back,</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{user?.name ?? "Student"} 👋</h1>
+          <p className="text-muted-foreground mt-1">
+            Discover what&apos;s happening on campus and register in one tap.
+          </p>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setMyRegistrationsOpen(true)}
+          className="h-11 shrink-0 rounded-xl gap-2 border-border/60 bg-secondary/60 hover:bg-secondary"
+        >
+          <CalendarCheck className="h-4 w-4 text-primary" />
+          My Registrations
+          {myRegisteredEvents.length > 0 && (
+            <span className="ml-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-primary/20 px-1.5 text-xs font-medium text-primary">
+              {myRegisteredEvents.length}
+            </span>
+          )}
+        </Button>
       </header>
 
       {error && (
