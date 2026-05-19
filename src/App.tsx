@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import NotFound from "./pages/NotFound.tsx";
+import Landing from "./pages/Landing.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
 import { AuthProvider, getDashboardPathForRole, useAuth } from "@/context/AuthContext";
@@ -26,7 +27,7 @@ const RootRedirect = () => {
       </div>
     );
   }
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  if (!isAuthenticated || !user) return <Landing />;
   return <Navigate to={getDashboardPathForRole(user.role)} replace />;
 };
 

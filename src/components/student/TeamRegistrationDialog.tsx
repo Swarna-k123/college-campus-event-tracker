@@ -66,8 +66,11 @@ export const TeamRegistrationDialog = ({
   const [leaderBranch, setLeaderBranch] = useState("");
   const [members, setMembers] = useState<MemberForm[]>([]);
 
-  const maxTeamSize = event?.maxTeamSize ?? 2;
-  const maxMembers = Math.max(0, maxTeamSize - 1);
+  const minBound = Math.max(1, event?.minTeamSize ?? 1);
+  const maxBound =
+    event?.maxTeamSize != null ? Math.max(event.maxTeamSize, minBound) : Math.max(minBound, 2);
+  const minMembers = Math.max(0, minBound - 1);
+  const maxMembers = Math.max(0, maxBound - 1);
   const atMemberLimit = members.length >= maxMembers;
 
   useEffect(() => {
@@ -79,8 +82,8 @@ export const TeamRegistrationDialog = ({
     setLeaderUsn("");
     setLeaderSemester("1");
     setLeaderBranch("");
-    setMembers([]);
-  }, [open, event?.id, defaultLeaderName, defaultLeaderEmail]);
+    setMembers(Array.from({ length: minMembers }, () => emptyMember()));
+  }, [open, event?.id, defaultLeaderName, defaultLeaderEmail, minMembers]);
 
   const semesterSelect = (value: string, onChange: (v: string) => void, id: string) => (
     <Select value={value} onValueChange={onChange}>
@@ -115,6 +118,7 @@ export const TeamRegistrationDialog = ({
 
   const handleSubmit = async () => {
     if (!event) return;
+
     if (!teamName.trim()) throw new Error("Team name is required");
     if (!leaderName.trim()) throw new Error("Team leader name is required");
     if (!leaderPhone.trim()) throw new Error("Phone number is required");
@@ -132,9 +136,24 @@ export const TeamRegistrationDialog = ({
         member.branch.trim() ||
         member.email.trim() ||
         member.usn.trim();
-      if (!hasAny) continue;
+      if (!hasAny) {
+        if (i < minMembers) {
+          throw new Error(`Member ${i + 1} details are required for this event.`);
+        }
+        continue;
+      }
       const parsed = parseMember(member, i);
       if (parsed) parsedMembers.push(parsed);
+    }
+
+    const totalParticipants = 1 + parsedMembers.length;
+    if (totalParticipants < minBound) {
+      throw new Error(
+        `Team must have at least ${minBound} participants (including leader). Add ${minBound - totalParticipants} more member(s).`
+      );
+    }
+    if (totalParticipants > maxBound) {
+      throw new Error(`Team cannot exceed ${maxBound} participants (including leader).`);
     }
 
     await onSubmit({
@@ -151,13 +170,15 @@ export const TeamRegistrationDialog = ({
     });
   };
 
-  const memberHint = useMemo(
-    () =>
-      maxMembers === 0
-        ? "This team size allows only the leader."
-        : `Add up to ${maxMembers} team member${maxMembers === 1 ? "" : "s"} (team size: ${maxTeamSize}).`,
-    [maxMembers, maxTeamSize]
-  );
+  const memberHint = useMemo(() => {
+    if (maxMembers === 0) {
+      return "This team size allows only the leader.";
+    }
+    if (minMembers === maxMembers) {
+      return `Add exactly ${minMembers} team member${minMembers === 1 ? "" : "s"} (team size: ${maxBound}).`;
+    }
+    return `Add ${minMembers}–${maxMembers} team member${maxMembers === 1 ? "" : "s"} (team size: ${minBound}–${maxBound} including leader).`;
+  }, [minMembers, maxMembers, minBound, maxBound]);
 
   if (!event) return null;
 
@@ -167,7 +188,7 @@ export const TeamRegistrationDialog = ({
         <DialogHeader>
           <DialogTitle>Team Registration</DialogTitle>
           <DialogDescription>
-            {event.title} — register your team (max {maxTeamSize} participants including leader).
+            {event.title} — register your team (max {maxBound} participants including leader).
           </DialogDescription>
         </DialogHeader>
 
@@ -246,18 +267,20 @@ export const TeamRegistrationDialog = ({
                 <p className="text-sm font-medium">Team Members</p>
                 <p className="text-xs text-muted-foreground">{memberHint}</p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={atMemberLimit}
-                onClick={() => setMembers((prev) => [...prev, emptyMember()])}
-                className="gap-1 border-border/60"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add Team Member
-              </Button>
+              {maxMembers > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={atMemberLimit}
+                  onClick={() => setMembers((prev) => [...prev, emptyMember()])}
+                  className="gap-1 border-border/60"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Team Member
+                </Button>
+              )}
             </div>
-            {atMemberLimit && (
+            {maxMembers > 0 && atMemberLimit && (
               <p className="text-xs text-amber-300/90">Maximum team size reached</p>
             )}
             {members.map((member, index) => (
@@ -266,17 +289,24 @@ export const TeamRegistrationDialog = ({
                 className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Member {index + 1}</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setMembers((prev) => prev.filter((_, i) => i !== index))}
-                    aria-label="Remove member"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <p className="text-sm font-medium">
+                    Member {index + 1}
+                    {index < minMembers ? (
+                      <span className="text-destructive ml-1">*</span>
+                    ) : null}
+                  </p>
+                  {members.length > minMembers && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setMembers((prev) => prev.filter((_, i) => i !== index))}
+                      aria-label="Remove member"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div className="space-y-2 sm:col-span-2">

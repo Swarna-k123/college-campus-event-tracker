@@ -1,0 +1,150 @@
+.landing-page {
+  --landing-bg: #0f0f1a;
+  --landing-primary: #7c3aed;
+  --landing-accent: #22d3ee;
+  --landing-highlight: #f59e0b;
+  --landing-text: #e5e7eb;
+  --landing-muted: #9ca3af;
+  background-color: var(--landing-bg);
+  color: var(--landing-text);
+}
+
+.landing-page .landing-gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: landing-float 8s ease-in-out infinite;
+}
+
+.landing-page .landing-gradient-orb--primary {
+  background: rgba(124, 58, 237, 0.35);
+}
+
+.landing-page .landing-gradient-orb--accent {
+  background: rgba(34, 211, 238, 0.25);
+  animation-delay: -3s;
+}
+
+.landing-page .landing-gradient-orb--highlight {
+  background: rgba(245, 158, 11, 0.15);
+  animation-delay: -5s;
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -18px) scale(1.05);
+  }
+}
+
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+.landing-page .landing-animate-in {
+  animation: landing-fade-up 0.7s ease-out both;
+}
+
+.landing-page .landing-delay-1 {
+  animation-delay: 0.1s;
+}
+.landing-page .landing-delay-2 {
+  animation-delay: 0.2s;
+}
+.landing-page .landing-delay-3 {
+  animation-delay: 0.3s;
+}
+.landing-page .landing-delay-4 {
+  animation-delay: 0.4s;
+}
+
+.landing-page .landing-hero-title {
+  background: linear-gradient(135deg, #e5e7eb 0%, #c4b5fd 40%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-page .landing-btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff;
+  box-shadow: 0 0 32px -4px rgba(124, 58, 237, 0.6);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.landing-page .landing-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px -4px rgba(124, 58, 237, 0.8);
+}
+
+.landing-page .landing-btn-outline {
+  border: 1px solid rgba(34, 211, 238, 0.5);
+  color: var(--landing-accent);
+  background: rgba(34, 211, 238, 0.08);
+  transition: transform 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.landing-page .landing-btn-outline:hover {
+  transform: translateY(-2px);
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--landing-accent);
+}
+
+.landing-page .landing-card {
+  background: linear-gradient(160deg, rgba(30, 27, 46, 0.9), rgba(15, 15, 26, 0.95));
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.landing-page .landing-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 16px 40px -12px rgba(124, 58, 237, 0.35);
+}
+
+.landing-page .landing-stat-value {
+  background: linear-gradient(90deg, #7c3aed, #22d3ee, #f59e0b);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: landing-shimmer 6s linear infinite;
+}
+
+.landing-page .landing-event-card {
+  background: linear-gradient(180deg, rgba(30, 27, 46, 0.95), rgba(15, 15, 26, 1));
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.landing-page .landing-event-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px -16px rgba(34, 211, 238, 0.25);
+}
+
+.landing-page .landing-grid-bg {
+  background-image: linear-gradient(rgba(124, 58, 237, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
+}

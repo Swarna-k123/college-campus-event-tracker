@@ -24,6 +24,7 @@ export interface ManagerEvent {
   category: EventCategory;
   maxRegistrations: number;
   eventType: EventType;
+  minTeamSize: number | null;
   maxTeamSize: number | null;
   budget?: number | null;
   status: ManagerStatus;

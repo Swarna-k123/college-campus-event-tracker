@@ -180,6 +180,7 @@ export const ManagerDashboard = () => {
       max_registrations: payload.maxRegistrations,
       budget: payload.budget,
       event_type: payload.eventType,
+      min_team_size: payload.eventType === "team" ? payload.minTeamSize : null,
       max_team_size: payload.eventType === "team" ? payload.maxTeamSize : null,
       status: "pending",
       club_id: user.clubId,

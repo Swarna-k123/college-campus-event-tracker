@@ -1,9 +1,10 @@
 import type { Role } from "@/lib/roles";
 import type { DbAppRole } from "@/lib/db";
 
-export function dbRoleToUi(role: DbAppRole | string): Role {
-  if (role === "club_manager") return "manager";
-  if (role === "admin") return "admin";
+export function dbRoleToUi(role: DbAppRole | string | null | undefined): Role {
+  const r = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (r === "club_manager") return "manager";
+  if (r === "admin") return "admin";
   return "student";
 }
 

@@ -55,20 +55,48 @@ export const getDashboardPathForRole = (role: Role) => {
   return "/admin-dashboard";
 };
 
-async function fetchProfile(userId: string): Promise<AuthUser | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, club_id, clubs ( name )")
-    .eq("id", userId)
-    .maybeSingle();
+function clubNameFromRow(clubs: unknown): string | undefined {
+  if (clubs == null) return undefined;
+  if (Array.isArray(clubs) && clubs[0] && typeof clubs[0] === "object" && "name" in clubs[0]) {
+    return String((clubs[0] as { name: string }).name);
+  }
+  if (typeof clubs === "object" && "name" in (clubs as object)) {
+    return String((clubs as { name: string }).name);
+  }
+  return undefined;
+}
+
+async function fetchProfile(userId: string, authEmail?: string | null): Promise<AuthUser | null> {
+  const selectWithClub = "id, full_name, email, role, club_id, clubs ( name )";
+  const selectBase = "id, full_name, email, role, club_id";
+
+  let { data, error } = await supabase.from("profiles").select(selectWithClub).eq("id", userId).maybeSingle();
+
+  if (error) {
+    console.error(error);
+    ({ data, error } = await supabase.from("profiles").select(selectBase).eq("id", userId).maybeSingle());
+  }
 
   if (error) {
     console.error(error);
     return null;
   }
-  if (!data) return null;
 
-  const club = data.clubs as { name: string }[] | null | undefined;
+  if (!data && authEmail?.trim()) {
+    const norm = authEmail.trim().toLowerCase();
+    let r2 = await supabase.from("profiles").select(selectWithClub).ilike("email", norm).maybeSingle();
+    if (r2.error) {
+      console.error(r2.error);
+      r2 = await supabase.from("profiles").select(selectBase).ilike("email", norm).maybeSingle();
+    }
+    if (r2.error) {
+      console.error(r2.error);
+    } else if (r2.data?.id === userId) {
+      data = r2.data;
+    }
+  }
+
+  if (!data) return null;
 
   return {
     id: data.id,
@@ -76,7 +104,7 @@ async function fetchProfile(userId: string): Promise<AuthUser | null> {
     email: data.email,
     role: dbRoleToUi(data.role as DbAppRole),
     clubId: data.club_id,
-    clubName: club?.[0]?.name,
+    clubName: clubNameFromRow((data as { clubs?: unknown }).clubs),
   };
 }
 
@@ -163,7 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     await ensureProfileFromSession(session);
-    const profile = await fetchProfile(session.user.id);
+    const profile = await fetchProfile(session.user.id, session.user.email);
     setUser(profile);
   }, []);
 
@@ -199,7 +227,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       return;
     }
-    const profile = await fetchProfile(session.user.id);
+    const profile = await fetchProfile(session.user.id, session.user.email);
     setUser(profile);
   }, []);
 
@@ -211,29 +239,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     if (error) throw new Error(getSupabaseErrorMessage(error));
 
-    let profile = await fetchProfile(data.session.user.id);
+    const profile = await fetchProfile(data.session.user.id, data.session.user.email ?? normalizedEmail);
 
     if (!profile) {
-      const isAdmin = normalizedEmail === "your_admin_email@example.com";
-
-      if (!isAdmin) {
-        await supabase.auth.signOut();
-        throw new Error("Please sign up first before logging in.");
-      }
-
-      const { error: adminInsertError } = await supabase.from("profiles").insert({
-        id: data.session.user.id,
-        full_name: "Admin",
-        email: normalizedEmail,
-        role: "admin",
-        club_id: null,
-      });
-      if (adminInsertError) throw new Error(getSupabaseErrorMessage(adminInsertError));
-
-      profile = await fetchProfile(data.session.user.id);
+      await supabase.auth.signOut();
+      throw new Error("Could not load your account profile. If your account exists, contact support.");
     }
-
-    if (!profile) throw new Error("Profile not found. Contact support.");
     setUser(profile);
     return profile;
   }, []);
@@ -282,7 +293,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await markManagerAccessCodeUsed(accessRowId);
       }
 
-      const profile = await fetchProfile(data.user.id);
+      const profile = await fetchProfile(data.user.id, data.user.email ?? email);
       if (profile) setUser(profile);
       return profile;
     }

@@ -27,6 +27,7 @@ export type CreateEventSubmitPayload = {
   maxRegistrations: number;
   budget: number;
   eventType: EventType;
+  minTeamSize: number | null;
   maxTeamSize: number | null;
   startsAt: Date;
   posterFile: File;
@@ -49,7 +50,10 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [maxReg, setMaxReg] = useState<string>("");
   const [budget, setBudget] = useState<string>("");
   const [eventType, setEventType] = useState<EventType>("individual");
+  const [minTeamSize, setMinTeamSize] = useState<string>("");
   const [maxTeamSize, setMaxTeamSize] = useState<string>("");
+  const [minTeamErr, setMinTeamErr] = useState("");
+  const [maxTeamErr, setMaxTeamErr] = useState("");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +89,10 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setMaxReg("");
     setBudget("");
     setEventType("individual");
+    setMinTeamSize("");
     setMaxTeamSize("");
+    setMinTeamErr("");
+    setMaxTeamErr("");
     if (posterPreview?.startsWith("blob:")) URL.revokeObjectURL(posterPreview);
     setPosterFile(null);
     setPosterPreview(null);
@@ -106,11 +113,28 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     if (!budget.trim() || Number.isNaN(budgetAmount) || budgetAmount < 0)
       return toast.error("Enter a valid approximate budget");
 
-    let teamSize: number | null = null;
+    let minT: number | null = null;
+    let maxT: number | null = null;
+    setMinTeamErr("");
+    setMaxTeamErr("");
     if (eventType === "team") {
-      const size = parseInt(maxTeamSize, 10);
-      if (!size || size < 2 || size > 20) return toast.error("Maximum team size must be between 2 and 20");
-      teamSize = size;
+      const minParsed = parseInt(minTeamSize, 10);
+      const maxParsed = parseInt(maxTeamSize, 10);
+      let teamOk = true;
+      if (!Number.isFinite(minParsed) || minParsed < 1) {
+        setMinTeamErr("Minimum team size must be at least 1");
+        teamOk = false;
+      }
+      if (!Number.isFinite(maxParsed)) {
+        setMaxTeamErr("Enter a valid maximum team size");
+        teamOk = false;
+      } else if (Number.isFinite(minParsed) && maxParsed < minParsed) {
+        setMaxTeamErr("Maximum team size must be greater than or equal to minimum team size");
+        teamOk = false;
+      }
+      if (!teamOk) return;
+      minT = minParsed;
+      maxT = maxParsed;
     }
 
     const [hh, mm] = time.split(":").map(Number);
@@ -127,7 +151,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         maxRegistrations: max,
         budget: budgetAmount,
         eventType,
-        maxTeamSize: teamSize,
+        minTeamSize: minT,
+        maxTeamSize: maxT,
         startsAt: dt,
         posterFile,
       });
@@ -243,7 +268,12 @@ export const CreateEventForm = ({ onCreate }: Props) => {
             value={eventType}
             onValueChange={(v) => {
               setEventType(v as EventType);
-              if (v === "individual") setMaxTeamSize("");
+              if (v === "individual") {
+                setMinTeamSize("");
+                setMaxTeamSize("");
+                setMinTeamErr("");
+                setMaxTeamErr("");
+              }
             }}
           >
             <SelectTrigger className="h-11 bg-secondary/60 border-border/60">
@@ -257,18 +287,45 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         </div>
 
         {eventType === "team" && (
-          <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-            <Label htmlFor="maxTeamSize">Maximum Team Size</Label>
-            <Input
-              id="maxTeamSize"
-              type="number"
-              min={2}
-              max={20}
-              value={maxTeamSize}
-              onChange={(e) => setMaxTeamSize(e.target.value)}
-              placeholder="e.g. 4"
-              className="bg-secondary/60 border-border/60 h-11"
-            />
+          <div className="grid sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="space-y-2">
+              <Label htmlFor="minTeamSize">
+                Minimum Team Size <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="minTeamSize"
+                type="number"
+                min={1}
+                value={minTeamSize}
+                onChange={(e) => {
+                  setMinTeamSize(e.target.value);
+                  setMinTeamErr("");
+                }}
+                placeholder="e.g. 2"
+                className="bg-secondary/60 border-border/60 h-11"
+                aria-invalid={!!minTeamErr}
+              />
+              {minTeamErr ? <p className="text-sm text-destructive">{minTeamErr}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxTeamSize">
+                Maximum Team Size <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="maxTeamSize"
+                type="number"
+                min={1}
+                value={maxTeamSize}
+                onChange={(e) => {
+                  setMaxTeamSize(e.target.value);
+                  setMaxTeamErr("");
+                }}
+                placeholder="e.g. 5"
+                className="bg-secondary/60 border-border/60 h-11"
+                aria-invalid={!!maxTeamErr}
+              />
+              {maxTeamErr ? <p className="text-sm text-destructive">{maxTeamErr}</p> : null}
+            </div>
           </div>
         )}
 
