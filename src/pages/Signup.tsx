@@ -49,10 +49,14 @@ const Signup = () => {
     e.preventDefault();
     const result = schema.safeParse({ name, email, password, role });
     const accessCode = managerAccessCode.trim();
-    if (!result.success || (role === "manager" && !accessCode)) {
+    const club = clubName.trim();
+    if (!result.success || (role === "manager" && (!accessCode || !club))) {
       const fieldErrors: Record<string, string> = {};
       if (!result.success) {
         result.error.issues.forEach((i) => (fieldErrors[i.path[0] as string] = i.message));
+      }
+      if (role === "manager" && !club) {
+        fieldErrors.clubName = "Club name is required.";
       }
       if (role === "manager" && !accessCode) {
         fieldErrors.managerAccessCode = "Manager access code is required.";
@@ -70,6 +74,7 @@ const Signup = () => {
         role,
         clubId: null,
         managerAccessCode: role === "manager" ? accessCode : undefined,
+        managerClubName: role === "manager" ? club : undefined,
       });
       if (user) {
         toast.success("Account created — welcome to CampusHub!");
@@ -190,6 +195,7 @@ const Signup = () => {
                     maxLength={120}
                     className="h-11 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
                   />
+                  {errors.clubName && <p className="text-xs text-destructive">{errors.clubName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="managerAccessCode">Manager Access Code</Label>

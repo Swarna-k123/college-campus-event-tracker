@@ -35,6 +35,7 @@ type SignupInput = {
   role: Exclude<Role, "admin">;
   clubId: string | null;
   managerAccessCode?: string;
+  managerClubName?: string;
 };
 
 type AuthContextValue = {
@@ -125,60 +126,110 @@ async function ensureProfileFromSession(session: Session) {
   const full_name = meta.full_name?.trim() || session.user.email?.split("@")[0] || "User";
   const email = session.user.email ?? "";
 
+  if (role === "club_manager" && !meta.club_id) {
+    console.error("[ensureProfileFromSession] club_manager missing club_id — skipping profile insert");
+    return;
+  }
+
   await supabase.from("profiles").insert({
     id: userId,
     full_name,
     email: email.toLowerCase(),
     role,
-    club_id: role === "club_manager" ? meta.club_id ?? null : null,
+    club_id: role === "club_manager" ? meta.club_id! : null,
   });
-
-  if (role === "club_manager" && meta.access_code_id) {
-    await supabase
-      .from("club_manager_access")
-      .update({ is_used: true })
-      .eq("id", meta.access_code_id);
-  }
 }
 
-async function resolveClubIdFromAccessCode(accessCode: string): Promise<{
-  clubId: string;
-  accessRowId: string;
-}> {
+/** Validates manager signup against club_manager_access only (codes are reusable). */
+async function validateManagerSignupAccess(
+  accessCode: string,
+  enteredClubName: string
+): Promise<{ clubName: string }> {
   const code = accessCode.trim();
+  const club = enteredClubName.trim();
+
+  console.log("[manager signup] entered access code:", code);
+  console.log("[manager signup] entered club name:", club);
+
   if (!code) throw new Error("Manager access code is required.");
+  if (!club) throw new Error("Club name is required.");
 
-  const { data: accessRow, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("club_manager_access")
-    .select("id, club_name, is_used")
-    .eq("access_code", code)
-    .maybeSingle();
+    .select("id, club_name, access_code")
+    .ilike("access_code", code);
 
-  if (error) throw new Error(getSupabaseErrorMessage(error));
-  if (!accessRow) throw new Error("Invalid manager access code");
-  if (accessRow.is_used) throw new Error("This manager access code has already been used");
+  console.log("[manager signup] club_manager_access response:", { data: rows, error });
+  if (error) {
+    console.error("[manager signup] club_manager_access query error:", error);
+    throw new Error(getSupabaseErrorMessage(error));
+  }
 
-  const { data: club, error: clubError } = await supabase
+  const normalizedCode = code.toLowerCase();
+  const enteredClub = club.toLowerCase();
+  const accessRow = (rows ?? []).find(
+    (r) =>
+      (r.access_code ?? "").trim().toLowerCase() === normalizedCode &&
+      (r.club_name ?? "").trim().toLowerCase() === enteredClub
+  );
+
+  if (!accessRow) {
+    const hasCode = (rows ?? []).some(
+      (r) => (r.access_code ?? "").trim().toLowerCase() === normalizedCode
+    );
+    if (!hasCode) throw new Error("Invalid manager access code");
+    throw new Error("Club name does not match this access code.");
+  }
+
+  return { clubName: accessRow.club_name.trim() };
+}
+
+/** Finds or creates a club row; returns a non-null club id for manager profiles. */
+async function ensureClubIdByName(clubName: string): Promise<string> {
+  const name = clubName.trim();
+
+  const { data: existing, error: findErr } = await supabase
     .from("clubs")
-    .select("id")
-    .ilike("name", accessRow.club_name.trim())
+    .select("id, name")
+    .ilike("name", name)
     .limit(1)
     .maybeSingle();
 
-  if (clubError) throw new Error(getSupabaseErrorMessage(clubError));
-  if (!club?.id) {
-    throw new Error("Club not found for this access code. Contact an administrator.");
+  console.log("[manager signup] clubs lookup response:", { data: existing, error: findErr });
+  if (findErr) {
+    console.error("[manager signup] clubs lookup error:", findErr);
+    throw new Error(getSupabaseErrorMessage(findErr));
+  }
+  if (existing?.id) {
+    console.log("[manager signup] fetched club_id:", existing.id);
+    return existing.id;
   }
 
-  return { clubId: club.id, accessRowId: accessRow.id };
-}
+  const { data: created, error: createErr } = await supabase
+    .from("clubs")
+    .insert({ name })
+    .select("id")
+    .single();
 
-async function markManagerAccessCodeUsed(accessRowId: string) {
-  const { error } = await supabase
-    .from("club_manager_access")
-    .update({ is_used: true })
-    .eq("id", accessRowId);
-  if (error) throw new Error(getSupabaseErrorMessage(error));
+  console.log("[manager signup] club creation result:", { data: created, error: createErr });
+  if (createErr) {
+    console.error("[manager signup] club creation error:", createErr);
+    const { data: retry, error: retryErr } = await supabase
+      .from("clubs")
+      .select("id")
+      .ilike("name", name)
+      .limit(1)
+      .maybeSingle();
+    if (!retryErr && retry?.id) {
+      console.log("[manager signup] fetched club_id after race:", retry.id);
+      return retry.id;
+    }
+    throw new Error(getSupabaseErrorMessage(createErr));
+  }
+  if (!created?.id) throw new Error("Could not create club record.");
+
+  console.log("[manager signup] fetched club_id:", created.id);
+  return created.id;
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -254,12 +305,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const roleDb: DbAppRole = input.role === "manager" ? "club_manager" : "student";
 
     let resolvedClubId: string | null = null;
-    let accessRowId: string | null = null;
 
     if (input.role === "manager") {
-      const resolved = await resolveClubIdFromAccessCode(input.managerAccessCode ?? "");
-      resolvedClubId = resolved.clubId;
-      accessRowId = resolved.accessRowId;
+      const validated = await validateManagerSignupAccess(
+        input.managerAccessCode ?? "",
+        input.managerClubName ?? ""
+      );
+      console.log("[manager signup] access code validation: ok", validated.clubName);
+      resolvedClubId = await ensureClubIdByName(validated.clubName);
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -270,27 +323,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           full_name: input.name.trim(),
           role: roleDb,
           club_id: resolvedClubId,
-          ...(accessRowId ? { access_code_id: accessRowId } : {}),
         },
       },
     });
 
-    if (error) throw new Error(getSupabaseErrorMessage(error));
+    if (error) {
+      console.error("[manager signup] auth signUp error:", error);
+      throw new Error(getSupabaseErrorMessage(error));
+    }
 
     if (!data.user) throw new Error("Signup failed");
 
+    console.log("[manager signup] auth user created:", data.user.id);
+
     if (data.session) {
+      if (roleDb === "club_manager" && !resolvedClubId) {
+        await supabase.auth.signOut();
+        throw new Error("Club could not be assigned. Please try again.");
+      }
+
       const { error: insErr } = await supabase.from("profiles").insert({
         id: data.user.id,
         full_name: input.name.trim(),
         email,
         role: roleDb,
-        club_id: roleDb === "club_manager" ? resolvedClubId : null,
+        club_id: roleDb === "club_manager" ? resolvedClubId! : null,
       });
-      if (insErr) throw new Error(getSupabaseErrorMessage(insErr));
 
-      if (accessRowId) {
-        await markManagerAccessCodeUsed(accessRowId);
+      console.log("[manager signup] profile insert result:", { error: insErr });
+      if (insErr) {
+        console.error("[manager signup] profile insert error:", insErr);
+        await supabase.auth.signOut();
+        throw new Error(getSupabaseErrorMessage(insErr));
       }
 
       const profile = await fetchProfile(data.user.id, data.user.email ?? email);
