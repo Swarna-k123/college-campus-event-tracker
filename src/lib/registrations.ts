@@ -5,12 +5,13 @@ import type { TeamRegistrationDetails } from "@/data/teamRegistration";
 
 type RegRow = {
   id: string;
+  student_id: string;
   phone: string;
   branch: string;
   semester: number;
   registered_at: string;
   team_details: TeamRegistrationDetails | null;
-  profiles: { full_name: string; email: string } | null;
+  profiles: { full_name: string; email: string }[];
 };
 
 export async function fetchEventRegistrantsForManager(eventId: string): Promise<Registrant[]> {
@@ -19,6 +20,7 @@ export async function fetchEventRegistrantsForManager(eventId: string): Promise<
     .select(
       `
       id,
+      student_id,
       phone,
       branch,
       semester,
@@ -34,8 +36,9 @@ export async function fetchEventRegistrantsForManager(eventId: string): Promise<
 
   return (data as RegRow[] | null)?.map((r) => ({
     id: r.id,
-    name: r.team_details?.leader.name ?? r.profiles?.full_name ?? "—",
-    email: r.team_details?.leader.email ?? r.profiles?.email ?? "",
+    studentId: r.student_id,
+    name: r.team_details?.leader.name ?? r.profiles?.[0]?.full_name ?? "—",
+    email: r.team_details?.leader.email ?? r.profiles?.[0]?.email ?? "",
     phone: r.team_details?.leader.phone ?? r.phone,
     branch: r.team_details?.leader.branch ?? r.branch,
     semester: r.team_details?.leader.semester ?? r.semester,

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   AlertCircle,
+  CheckCircle,
   CheckCircle2,
   Clock,
   Eye,
@@ -32,6 +33,7 @@ import { DashboardCard } from "@/components/DashboardCard";
 import { CreateEventForm, type CreateEventSubmitPayload } from "@/components/manager/CreateEventForm";
 import { EditEventForm, type EditEventSubmitPayload } from "@/components/manager/EditEventForm";
 import { RegistrationsDialog } from "@/components/manager/RegistrationsDialog";
+import { AttendanceDialog } from "@/components/manager/AttendanceDialog";
 import { type ManagerEvent, type ManagerStatus, registrationCount } from "@/data/managerEvents";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -163,6 +165,8 @@ type ManagerWorkspaceContextValue = {
   setViewing: (e: ManagerDashboardEvent | null) => void;
   setEditing: (e: ManagerDashboardEvent | null) => void;
   setDeleting: (e: ManagerDashboardEvent | null) => void;
+  attendanceEvent: ManagerDashboardEvent | null;
+  setAttendanceEvent: (e: ManagerDashboardEvent | null) => void;
   handleCreate: (payload: CreateEventSubmitPayload) => Promise<void>;
 };
 
@@ -180,6 +184,7 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
   const [viewing, setViewing] = useState<ManagerDashboardEvent | null>(null);
   const [deleting, setDeleting] = useState<ManagerDashboardEvent | null>(null);
   const [editing, setEditing] = useState<ManagerDashboardEvent | null>(null);
+  const [attendanceEvent, setAttendanceEvent] = useState<ManagerDashboardEvent | null>(null);
 
   const {
     data: membership,
@@ -207,6 +212,12 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
     queryKey: ["manager-event-regs", viewing?.id],
     enabled: !!viewing,
     queryFn: () => fetchEventRegistrantsForManager(viewing!.id),
+  });
+
+  const { data: attendanceRegs = [], isLoading: attendanceRegsLoading } = useQuery({
+    queryKey: ["manager-event-attendance-regs", attendanceEvent?.id],
+    enabled: !!attendanceEvent,
+    queryFn: () => fetchEventRegistrantsForManager(attendanceEvent!.id),
   });
 
   const { data: managerClubName } = useQuery({
@@ -347,6 +358,8 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
         certificate_template_name: certName,
         certificate_name_x: certNameX,
         certificate_name_y: certNameY,
+        is_paid: payload.isPaid ?? false,
+        registration_fee: payload.registrationFee,
       })
       .eq("id", editing.id)
       .eq("created_by", user.id);
@@ -387,6 +400,8 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
     setViewing,
     setEditing,
     setDeleting,
+    attendanceEvent,
+    setAttendanceEvent,
     handleCreate,
   };
 
@@ -399,6 +414,13 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
         registrants={viewingRegs}
         loading={viewingRegsLoading}
         onClose={() => setViewing(null)}
+      />
+
+      <AttendanceDialog
+        event={attendanceEvent}
+        registrants={attendanceRegs}
+        loading={attendanceRegsLoading}
+        onClose={() => setAttendanceEvent(null)}
       />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
@@ -438,7 +460,7 @@ type ManagerEventCardProps = {
 };
 
 export const ManagerEventCard = ({ event, showActions = true }: ManagerEventCardProps) => {
-  const { setViewing, setEditing, setDeleting } = useManagerWorkspace();
+  const { setViewing, setEditing, setDeleting, setAttendanceEvent } = useManagerWorkspace();
   const meta = statusMeta[event.status];
   const count = registrationCount(event);
   const pct = Math.min(100, Math.round((count / event.maxRegistrations) * 100));
@@ -489,6 +511,9 @@ export const ManagerEventCard = ({ event, showActions = true }: ManagerEventCard
           </Button>
           {showActions && (
             <>
+              <Button size="sm" variant="ghost" type="button" onClick={() => setAttendanceEvent(event)} disabled={count === 0}>
+                <CheckCircle className="h-4 w-4" />
+              </Button>
               <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(event)}>
                 <Pencil className="h-4 w-4" />
               </Button>

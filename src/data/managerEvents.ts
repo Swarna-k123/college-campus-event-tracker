@@ -5,6 +5,7 @@ export type ManagerStatus = EventStatus;
 
 export interface Registrant {
   id: string;
+  studentId: string;
   name: string;
   email: string;
   phone: string;

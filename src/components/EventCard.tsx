@@ -1,8 +1,12 @@
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Download, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ManagerEvent } from "@/data/managerEvents";
 import { registrationCount } from "@/data/managerEvents";
+import { useState } from "react";
+import { toast } from "sonner";
+import { downloadCertificate, checkCertificateEligibility } from "@/lib/downloadCertificate";
+import { useAuth } from "@/context/AuthContext";
 
 const categoryStyles: Record<string, string> = {
   Technical: "bg-primary/20 text-primary border-primary/40",
@@ -37,10 +41,45 @@ type Props = {
   event: ManagerEvent;
   onRegisterClick?: () => void;
   isRegistered?: boolean;
+  showCertificateButton?: boolean;
 };
 
-export const EventCard = ({ event, onRegisterClick, isRegistered }: Props) => {
+export const EventCard = ({ event, onRegisterClick, isRegistered, showCertificateButton = false }: Props) => {
+  const { user } = useAuth();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [certificateEligibility, setCertificateEligibility] = useState<{ eligible: boolean; reason?: string } | null>(null);
   const count = registrationCount(event);
+
+  const handleCertificateClick = async () => {
+    if (!user) return;
+    
+    setIsDownloading(true);
+    try {
+      // Check eligibility
+      const eligibility = await checkCertificateEligibility(event.id, user.id);
+      setCertificateEligibility(eligibility);
+      
+      if (!eligibility.eligible) {
+        toast.error(eligibility.reason || "Cannot download certificate");
+        return;
+      }
+      
+      // Download certificate
+      await downloadCertificate(
+        event.id,
+        user.id,
+        user.name || "Student",
+        event.certificateNameX || null,
+        event.certificateNameY || null
+      );
+      
+      toast.success("Certificate downloaded successfully");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to download certificate");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <article className="group flex flex-col h-full rounded-2xl overflow-hidden border border-border/60 bg-gradient-card shadow-soft backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-glow hover:border-primary/40">
@@ -86,12 +125,33 @@ export const EventCard = ({ event, onRegisterClick, isRegistered }: Props) => {
           </div>
         )}
         {isRegistered ? (
-          <Badge
-            variant="outline"
-            className="w-full justify-center py-2 text-sm bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
-          >
-            Registered
-          </Badge>
+          <div className="space-y-2">
+            <Badge
+              variant="outline"
+              className="w-full justify-center py-2 text-sm bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
+            >
+              Registered
+            </Badge>
+            {showCertificateButton && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2 border-border/60"
+                onClick={handleCertificateClick}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <>
+                    <Award className="h-4 w-4 animate-spin" /> Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" /> Download Certificate
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         ) : (
           <Button
             type="button"

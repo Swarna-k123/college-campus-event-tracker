@@ -730,7 +730,7 @@ export const MyRegistrationsList = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {myRegisteredEvents.map((e) => (
-        <EventCard key={e.id} event={e} isRegistered />
+        <EventCard key={e.id} event={e} isRegistered showCertificateButton />
       ))}
     </div>
   );

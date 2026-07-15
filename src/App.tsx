@@ -22,6 +22,7 @@ import { ManagerMyEventsView } from "@/components/manager/views/ManagerMyEventsV
 import { ManagerCreateEventView } from "@/components/manager/views/ManagerCreateEventView";
 import { ManagerRegistrationsView } from "@/components/manager/views/ManagerRegistrationsView";
 import { ManagerMembersView } from "@/components/manager/views/ManagerMembersView";
+import { ManagerAttendanceView } from "@/components/manager/views/ManagerAttendanceView";
 import {
   ManagerAnalyticsView,
   ManagerActivityView,
@@ -108,6 +109,7 @@ const App = () => (
                   <Route path="create" element={<ManagerCreateEventView />} />
                   <Route path="members" element={<ManagerMembersView />} />
                   <Route path="registrations" element={<ManagerRegistrationsView />} />
+                  <Route path="attendance" element={<ManagerAttendanceView />} />
                   <Route path="analytics" element={<ManagerAnalyticsView />} />
                   <Route path="activity" element={<ManagerActivityView />} />
                   <Route path="settings" element={<ManagerSettingsView />} />

@@ -36,6 +36,8 @@ export type EditEventSubmitPayload = {
   certificateFile?: File | null;
   certificateNameX?: number | null;
   certificateNameY?: number | null;
+  isPaid?: boolean;
+  registrationFee?: number | null;
 };
 
 const CATEGORIES: EventCategory[] = ["Technical", "Cultural", "Sports", "Others"];
@@ -71,6 +73,8 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
   const [certificateName, setCertificateName] = useState<string | null>(event.certificateTemplateName ?? null);
   const [certNameX, setCertNameX] = useState<number | null>(event.certificateNameX ?? null);
   const [certNameY, setCertNameY] = useState<number | null>(event.certificateNameY ?? null);
+  const [isPaid, setIsPaid] = useState<boolean>(event.isPaid ?? false);
+  const [registrationFee, setRegistrationFee] = useState<string>(event.registrationFee != null ? String(event.registrationFee) : "");
 
   useEffect(() => {
     return () => {
@@ -136,6 +140,8 @@ export const EditEventForm = ({ event, onSave, onCancel }: Props) => {
         certificateFile: certEnabled ? certificateFile ?? null : null,
         certificateNameX: certEnabled ? certNameX : null,
         certificateNameY: certEnabled ? certNameY : null,
+        isPaid,
+        registrationFee: isPaid ? parseFloat(registrationFee) || null : null,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save event";
