@@ -1,7 +1,7 @@
-import { ManagerDashboard } from "@/components/dashboards/ManagerDashboard";
+import { ClubManagerLayout } from "@/components/layout/ClubManagerLayout";
 
 const ManagerDashboardPage = () => {
-  return <ManagerDashboard />;
+  return <ClubManagerLayout />;
 };
 
 export default ManagerDashboardPage;

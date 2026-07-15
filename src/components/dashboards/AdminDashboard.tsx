@@ -237,7 +237,7 @@ const EventReviewCard = ({
   );
 };
 
-async function loadAllEventsForAdmin(): Promise<AdminEvent[]> {
+export async function loadAllEventsForAdmin(): Promise<AdminEvent[]> {
   const { data: rows, error } = await supabase
     .from("events")
     .select("*, clubs ( name )")

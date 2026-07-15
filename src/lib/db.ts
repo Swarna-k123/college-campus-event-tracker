@@ -17,6 +17,13 @@ export type EventRow = {
   min_team_size?: number | null;
   max_team_size?: number | null;
   budget: number | null;
+  certificates_enabled?: boolean | null;
+  certificate_template_url?: string | null;
+  certificate_template_name?: string | null;
+  certificate_name_x?: number | null;
+  certificate_name_y?: number | null;
+  is_paid?: boolean | null;
+  registration_fee?: number | null;
   status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
   club_id: string;

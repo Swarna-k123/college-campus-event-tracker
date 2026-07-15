@@ -20,10 +20,17 @@ export function mapEventRowToManagerEvent(
     minTeamSize: row.min_team_size ?? null,
     maxTeamSize: row.max_team_size ?? null,
     budget: row.budget ?? null,
+    isPaid: row.is_paid ?? false,
+    registrationFee: row.registration_fee ?? null,
     status: row.status,
     rejectionReason: row.rejection_reason ?? undefined,
     registrants: opts?.registrants ?? [],
     registrationCount: opts?.registrationCount,
     club: clubName,
+    certificatesEnabled: (row as any).certificates_enabled ?? false,
+    certificateTemplateUrl: (row as any).certificate_template_url ?? null,
+    certificateTemplateName: (row as any).certificate_template_name ?? null,
+    certificateNameX: (row as any).certificate_name_x ?? null,
+    certificateNameY: (row as any).certificate_name_y ?? null,
   };
 }

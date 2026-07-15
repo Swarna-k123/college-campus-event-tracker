@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, ImagePlus, Loader2, X } from "lucide-react";
+import { CertificateTemplatePicker } from "@/components/manager/CertificateTemplatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +32,10 @@ export type CreateEventSubmitPayload = {
   maxTeamSize: number | null;
   startsAt: Date;
   posterFile: File;
+  certificatesEnabled?: boolean;
+  certificateFile?: File | null;
+  certificateNameX?: number | null;
+  certificateNameY?: number | null;
 };
 
 interface Props {
@@ -57,6 +62,11 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [certEnabled, setCertEnabled] = useState(false);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateName, setCertificateName] = useState<string | null>(null);
+  const [certNameX, setCertNameX] = useState<number | null>(null);
+  const [certNameY, setCertNameY] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -79,6 +89,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setPosterPreview(URL.createObjectURL(file));
   };
 
+
+
   const reset = () => {
     setTitle("");
     setDescription("");
@@ -96,6 +108,11 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     if (posterPreview?.startsWith("blob:")) URL.revokeObjectURL(posterPreview);
     setPosterFile(null);
     setPosterPreview(null);
+    setCertEnabled(false);
+    setCertificateFile(null);
+    setCertificateName(null);
+    setCertNameX(null);
+    setCertNameY(null);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -155,6 +172,10 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         maxTeamSize: maxT,
         startsAt: dt,
         posterFile,
+        certificatesEnabled: certEnabled,
+        certificateFile: certEnabled ? certificateFile ?? null : null,
+        certificateNameX: certEnabled ? certNameX : null,
+        certificateNameY: certEnabled ? certNameY : null,
       });
       reset();
     } catch (err) {
@@ -329,6 +350,10 @@ export const CreateEventForm = ({ onCreate }: Props) => {
           </div>
         )}
 
+
+
+        {/* Payment fields removed: legacy `isPaid` / `registrationFee` references caused runtime errors */}
+
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="max">Max Registrations</Label>
@@ -370,6 +395,53 @@ export const CreateEventForm = ({ onCreate }: Props) => {
           <Button type="button" variant="ghost" onClick={reset} disabled={submitting}>
             Reset
           </Button>
+        </div>
+        <div className="space-y-2">
+          <Label>Certificates Available</Label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setCertEnabled(true)}
+              className={cn(
+                "px-3 py-1 rounded-md h-9",
+                certEnabled ? "bg-primary text-primary-foreground" : "bg-background/60 border border-border/60"
+              )}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCertEnabled(false);
+                setCertificateFile(null);
+                setCertificateName(null);
+                setCertNameX(null);
+                setCertNameY(null);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-md h-9",
+                !certEnabled ? "bg-primary text-primary-foreground" : "bg-background/60 border border-border/60"
+              )}
+            >
+              No
+            </button>
+          </div>
+          <CertificateTemplatePicker
+            certEnabled={certEnabled}
+            existingTemplateName={certificateName}
+            onFileChange={(file) => {
+              setCertificateFile(file);
+              setCertificateName(file?.name ?? null);
+            }}
+            onNamePositionChange={(x, y) => {
+              setCertNameX(x);
+              setCertNameY(y);
+            }}
+            onClearPosition={() => {
+              setCertNameX(null);
+              setCertNameY(null);
+            }}
+          />
         </div>
       </div>
 

@@ -27,12 +27,19 @@ export interface ManagerEvent {
   minTeamSize: number | null;
   maxTeamSize: number | null;
   budget?: number | null;
+  isPaid?: boolean | null;
+  registrationFee?: number | null;
   status: ManagerStatus;
   rejectionReason?: string;
   registrants: Registrant[];
   /** When loaded from API, prefer this over registrants.length for display. */
   registrationCount?: number;
   club: string;
+  certificatesEnabled?: boolean | null;
+  certificateTemplateUrl?: string | null;
+  certificateTemplateName?: string | null;
+  certificateNameX?: number | null;
+  certificateNameY?: number | null;
 }
 
 export function registrationCount(e: ManagerEvent): number {
