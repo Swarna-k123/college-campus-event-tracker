@@ -11,7 +11,7 @@ type RegRow = {
   semester: number;
   registered_at: string;
   team_details: TeamRegistrationDetails | null;
-  profiles: { full_name: string; email: string }[];
+  profiles: { full_name: string; email: string } | null;
 };
 
 export async function fetchEventRegistrantsForManager(eventId: string): Promise<Registrant[]> {
@@ -37,8 +37,8 @@ export async function fetchEventRegistrantsForManager(eventId: string): Promise<
   return (data as RegRow[] | null)?.map((r) => ({
     id: r.id,
     studentId: r.student_id,
-    name: r.team_details?.leader.name ?? r.profiles?.[0]?.full_name ?? "—",
-    email: r.team_details?.leader.email ?? r.profiles?.[0]?.email ?? "",
+    name: r.team_details?.leader.name ?? r.profiles?.full_name ?? "—",
+    email: r.team_details?.leader.email ?? r.profiles?.email ?? "",
     phone: r.team_details?.leader.phone ?? r.phone,
     branch: r.team_details?.leader.branch ?? r.branch,
     semester: r.team_details?.leader.semester ?? r.semester,
