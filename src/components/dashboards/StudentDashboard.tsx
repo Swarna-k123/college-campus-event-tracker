@@ -293,8 +293,13 @@ export const StudentDashboard = () => {
   };
 
   const filtered = useMemo(() => {
+    const now = Date.now();
     const q = search.trim().toLowerCase();
     return allApproved
+      .filter((e) => {
+        const endTime = e.endsAt ? +new Date(e.endsAt) : +new Date(e.date);
+        return endTime > now;
+      })
       .filter((e) =>
         q ? e.title.toLowerCase().includes(q) || e.club.toLowerCase().includes(q) : true
       )
@@ -348,6 +353,17 @@ export const StudentDashboard = () => {
     const isFull = registrationCount(event) >= event.maxRegistrations;
     if (isFull) {
       toast.error("This event is full.");
+      return;
+    }
+
+    const now = Date.now();
+    const endTime = event.endsAt ? +new Date(event.endsAt) : +new Date(event.date);
+    const isRegistrationClosed = 
+      (event.registrationClosesAt && +new Date(event.registrationClosesAt) < now) ||
+      (endTime < now);
+
+    if (isRegistrationClosed) {
+      toast.error("Registration for this event is closed.");
       return;
     }
 

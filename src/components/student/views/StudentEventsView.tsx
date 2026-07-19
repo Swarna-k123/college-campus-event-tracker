@@ -3,7 +3,7 @@ import { CalendarClock, Flame, Sparkles } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
 export const StudentEventsView = () => {
-  const { isLoading, error, filtered, recommended, trending, upcoming, showRecommended, openRegisterDialog } = useStudentEvents();
+  const { isLoading, error, filtered, recommended, trending, upcoming, showRecommended, openRegisterDialog, openDetailsDialog } = useStudentEvents();
 
   return (
     <div className="space-y-8">
@@ -33,6 +33,7 @@ export const StudentEventsView = () => {
               description="Picked from clubs and categories you've engaged with."
               events={recommended}
               onRegister={openRegisterDialog}
+              onDetails={openDetailsDialog}
             />
           ) : (
             <StudentEventSection
@@ -41,6 +42,7 @@ export const StudentEventsView = () => {
               description="What everyone on campus is signing up for."
               events={trending}
               onRegister={openRegisterDialog}
+              onDetails={openDetailsDialog}
             />
           )}
 
@@ -51,6 +53,7 @@ export const StudentEventsView = () => {
               description="Most registrations across campus right now."
               events={trending}
               onRegister={openRegisterDialog}
+              onDetails={openDetailsDialog}
             />
           )}
 
@@ -60,6 +63,7 @@ export const StudentEventsView = () => {
             description="Sorted by the soonest start time."
             events={upcoming}
             onRegister={openRegisterDialog}
+            onDetails={openDetailsDialog}
           />
         </div>
       )}

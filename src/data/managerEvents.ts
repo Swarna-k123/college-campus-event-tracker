@@ -21,6 +21,8 @@ export interface ManagerEvent {
   description: string;
   poster: string;
   date: string;
+  endsAt?: string;
+  registrationClosesAt?: string | null;
   venue: string;
   category: EventCategory;
   maxRegistrations: number;
@@ -36,12 +38,15 @@ export interface ManagerEvent {
   /** When loaded from API, prefer this over registrants.length for display. */
   registrationCount?: number;
   club: string;
+  /** Club logo URL from clubs.club_logo_url — may be null if no logo uploaded. */
+  clubLogoUrl?: string | null;
   certificatesEnabled?: boolean | null;
   certificateTemplateUrl?: string | null;
   certificateTemplateName?: string | null;
   certificateNameX?: number | null;
   certificateNameY?: number | null;
 }
+
 
 export function registrationCount(e: ManagerEvent): number {
   return e.registrationCount ?? e.registrants.length;

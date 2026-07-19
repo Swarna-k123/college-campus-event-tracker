@@ -23,11 +23,9 @@ import { ManagerCreateEventView } from "@/components/manager/views/ManagerCreate
 import { ManagerRegistrationsView } from "@/components/manager/views/ManagerRegistrationsView";
 import { ManagerMembersView } from "@/components/manager/views/ManagerMembersView";
 import { ManagerAttendanceView } from "@/components/manager/views/ManagerAttendanceView";
-import {
-  ManagerAnalyticsView,
-  ManagerActivityView,
-  ManagerSettingsView,
-} from "@/components/manager/views/ManagerPlaceholders";
+import { ManagerAnalyticsView } from "@/components/manager/views/ManagerAnalyticsView";
+import { ManagerSettingsView } from "@/components/manager/views/ManagerPlaceholders";
+import { ManagerActivityView } from "@/components/manager/views/ManagerActivityView";
 
 const queryClient = new QueryClient();
 
@@ -88,7 +86,6 @@ const App = () => (
                   <Route path="pending" element={<AdminDashboardPage />} />
                   <Route path="events" element={<AdminDashboardPage />} />
                   <Route path="clubs" element={<AdminDashboardPage />} />
-                  <Route path="venue-conflicts" element={<AdminDashboardPage />} />
                   <Route path="analytics" element={<AdminDashboardPage />} />
                   <Route path="activity" element={<AdminDashboardPage />} />
                   <Route path="settings" element={<AdminDashboardPage />} />

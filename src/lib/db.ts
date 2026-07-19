@@ -10,6 +10,8 @@ export type EventRow = {
   description: string;
   poster_url: string;
   starts_at: string;
+  ends_at?: string;
+  registration_closes_at?: string | null;
   venue: string;
   category: EventCategory;
   max_registrations: number;

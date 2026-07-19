@@ -14,14 +14,22 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { navByRole, roleBasePath, type SidebarNavItem } from "@/config/sidebarNav";
 import type { Role } from "@/lib/roles";
+import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader";
 
 type AppSidebarProps = {
   role: Role;
   roleLabel: string;
+};
+
+const roleColors: Record<Role, string> = {
+  student: "bg-primary/20 text-primary border-primary/40",
+  manager: "bg-accent/20 text-accent border-accent/40",
+  admin: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
 };
 
 export const AppSidebar = ({ role, roleLabel }: AppSidebarProps) => {
@@ -39,7 +47,7 @@ export const AppSidebar = ({ role, roleLabel }: AppSidebarProps) => {
     cn(
       "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200",
       isActive
-        ? "bg-primary/10 text-primary font-semibold shadow-glow-sm"
+        ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-semibold shadow-glow-sm border-l-2 border-primary"
         : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
     );
 
@@ -148,6 +156,7 @@ export const AppSidebar = ({ role, roleLabel }: AppSidebarProps) => {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/95 backdrop-blur-xl">
+      {/* Brand header */}
       <SidebarHeader className="border-b border-border/40 p-4">
         <NavLink
           to={basePath}
@@ -163,14 +172,56 @@ export const AppSidebar = ({ role, roleLabel }: AppSidebarProps) => {
             </span>
           </div>
         </NavLink>
+
+        {/* Student profile card — shown only for student role in expanded state */}
+        {role === "student" && (
+          <NavLink
+            to={`${basePath}/profile`}
+            className="group-data-[collapsible=icon]:hidden mt-4 flex flex-col items-center gap-2 rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 to-primary/5 p-4 hover:border-primary/40 transition-all duration-200"
+          >
+            <ProfilePhotoUploader
+              userId={user?.id ?? ""}
+              currentUrl={null}
+              userName={user?.name ?? ""}
+              size="md"
+              readOnly
+            />
+            <div className="text-center min-w-0 w-full">
+              <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
+              {user?.clubName && (
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{user.clubName}</p>
+              )}
+              <Badge
+                variant="outline"
+                className={cn("mt-2 text-[10px] font-semibold capitalize", roleColors[role])}
+              >
+                {roleLabel}
+              </Badge>
+            </div>
+          </NavLink>
+        )}
       </SidebarHeader>
 
       {renderContent()}
 
       <SidebarFooter className="border-t border-border/40 p-4">
-        <div className="mb-3 truncate text-xs font-medium text-muted-foreground/90 px-3 group-data-[collapsible=icon]:hidden">
-          Logged in as: <span className="text-foreground font-semibold">{user?.name}</span>
-        </div>
+        {/* Non-student roles: compact user info row */}
+        {role !== "student" && (
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <div className="shrink-0">
+              <ProfilePhotoUploader
+                userId={user?.id ?? ""}
+                currentUrl={null}
+                userName={user?.name ?? ""}
+                size="sm"
+              />
+            </div>
+            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-semibold text-foreground truncate">{user?.name}</span>
+              <span className="text-[10px] text-muted-foreground/70 truncate capitalize">{user?.role}</span>
+            </div>
+          </div>
+        )}
         <Button
           variant="ghost"
           size="sm"

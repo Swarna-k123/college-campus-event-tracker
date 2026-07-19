@@ -5,7 +5,7 @@ import type { EventRow } from "@/lib/db";
 export function mapEventRowToManagerEvent(
   row: EventRow,
   clubName: string,
-  opts?: { registrants?: Registrant[]; registrationCount?: number }
+  opts?: { registrants?: Registrant[]; registrationCount?: number; clubLogoUrl?: string | null }
 ): ManagerEvent {
   return {
     id: row.id,
@@ -13,6 +13,8 @@ export function mapEventRowToManagerEvent(
     description: row.description,
     poster: row.poster_url,
     date: row.starts_at,
+    endsAt: row.ends_at,
+    registrationClosesAt: row.registration_closes_at ?? null,
     venue: row.venue,
     category: row.category as EventCategory,
     maxRegistrations: row.max_registrations,
@@ -27,6 +29,7 @@ export function mapEventRowToManagerEvent(
     registrants: opts?.registrants ?? [],
     registrationCount: opts?.registrationCount,
     club: clubName,
+    clubLogoUrl: opts?.clubLogoUrl ?? null,
     certificatesEnabled: (row as any).certificates_enabled ?? false,
     certificateTemplateUrl: (row as any).certificate_template_url ?? null,
     certificateTemplateName: (row as any).certificate_template_name ?? null,
@@ -34,3 +37,4 @@ export function mapEventRowToManagerEvent(
     certificateNameY: (row as any).certificate_name_y ?? null,
   };
 }
+

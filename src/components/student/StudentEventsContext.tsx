@@ -39,6 +39,7 @@ import { registerTeamForEvent } from "@/lib/registrations";
 import { isTeamEvent, type TeamRegistrationDetails } from "@/data/teamRegistration";
 import { DashboardCard, StatCard } from "@/components/DashboardCard";
 import { CalendarIcon, Search, X } from "lucide-react";
+import { EventDetailsDialog } from "@/components/student/EventDetailsDialog";
 
 export type DateFilter = "all" | "today" | "week" | "custom";
 export type StudentEventCategory = EventCategory | "Hackathons" | "Workshops";
@@ -67,12 +68,14 @@ export const StudentEventSection = ({
   description,
   events,
   onRegister,
+  onDetails,
 }: {
   title: string;
   icon: React.ReactNode;
   description: string;
   events: ManagerEvent[];
   onRegister: (e: ManagerEvent) => void;
+  onDetails?: (e: ManagerEvent) => void;
 }) => (
   <section>
     <div className="flex items-end justify-between mb-4 gap-4">
@@ -88,7 +91,7 @@ export const StudentEventSection = ({
     ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {events.map((e) => (
-          <EventCard key={e.id} event={e} onRegisterClick={() => onRegister(e)} />
+          <EventCard key={e.id} event={e} onRegisterClick={() => onRegister(e)} onDetailsClick={onDetails ? () => onDetails(e) : undefined} />
         ))}
       </div>
     )}
@@ -142,7 +145,7 @@ export async function loadMyRegisteredEvents(studentId: string): Promise<Manager
 export async function loadApprovedEventsWithCounts(): Promise<ManagerEvent[]> {
   const { data: rows, error } = await supabase
     .from("events")
-    .select("*, clubs ( name )")
+    .select("*, clubs ( name, club_logo_url )")
     .eq("status", "approved")
     .order("starts_at", { ascending: true });
 
@@ -163,10 +166,12 @@ export async function loadApprovedEventsWithCounts(): Promise<ManagerEvent[]> {
   });
 
   return rows.map((r) => {
-    const row = r as EventRow & { clubs: { name: string } | null };
+    const row = r as EventRow & { clubs: { name: string; club_logo_url?: string | null } | null };
     const clubName = row.clubs?.name ?? "Club";
+    const clubLogoUrl = row.clubs?.club_logo_url ?? null;
     return mapEventRowToManagerEvent(row, clubName, {
       registrationCount: countMap.get(row.id) ?? 0,
+      clubLogoUrl,
     });
   });
 }
@@ -183,6 +188,7 @@ type StudentEventsContextValue = {
   upcoming: ManagerEvent[];
   showRecommended: boolean;
   openRegisterDialog: (event: ManagerEvent) => void;
+  openDetailsDialog: (event: ManagerEvent) => void;
   search: string;
   setSearch: (v: string) => void;
   dateFilter: DateFilter;
@@ -211,6 +217,7 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
   const [range, setRange] = useState<DateRange | undefined>();
   const [categories, setCategories] = useState<Set<StudentEventCategory>>(new Set());
   const [registerTarget, setRegisterTarget] = useState<ManagerEvent | null>(null);
+  const [detailsEvent, setDetailsEvent] = useState<ManagerEvent | null>(null);
   const [phone, setPhone] = useState("");
   const [branch, setBranch] = useState("");
   const [semester, setSemester] = useState("1");
@@ -318,8 +325,13 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
   const clearCategories = () => setCategories(new Set());
 
   const filtered = useMemo(() => {
+    const now = Date.now();
     const q = search.trim().toLowerCase();
     return allApproved
+      .filter((e) => {
+        const endTime = e.endsAt ? +new Date(e.endsAt) : +new Date(e.date);
+        return endTime > now;
+      })
       .filter((e) =>
         q ? e.title.toLowerCase().includes(q) || e.club.toLowerCase().includes(q) : true
       )
@@ -373,6 +385,17 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
     const isFull = registrationCount(event) >= event.maxRegistrations;
     if (isFull) {
       toast.error("This event is full.");
+      return;
+    }
+
+    const now = Date.now();
+    const endTime = event.endsAt ? +new Date(event.endsAt) : +new Date(event.date);
+    const isRegistrationClosed = 
+      (event.registrationClosesAt && +new Date(event.registrationClosesAt) < now) ||
+      (endTime < now);
+
+    if (isRegistrationClosed) {
+      toast.error("Registration for this event is closed.");
       return;
     }
 
@@ -474,6 +497,10 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
     setSemester("1");
   };
 
+  const openDetailsDialog = (event: ManagerEvent) => {
+    setDetailsEvent(event);
+  };
+
   const value: StudentEventsContextValue = {
     allApproved,
     isLoading,
@@ -486,6 +513,7 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
     upcoming,
     showRecommended,
     openRegisterDialog,
+    openDetailsDialog,
     search,
     setSearch,
     dateFilter,
@@ -500,6 +528,20 @@ export const StudentEventsProvider = ({ children }: { children: ReactNode }) => 
   return (
     <StudentEventsContext.Provider value={value}>
       {children}
+
+      {/* Event Details Dialog */}
+      <EventDetailsDialog
+        event={detailsEvent}
+        open={!!detailsEvent}
+        onOpenChange={(o) => !o && setDetailsEvent(null)}
+        isRegistered={detailsEvent ? myRegistrationEventIds.includes(detailsEvent.id) : false}
+        onRegisterClick={() => {
+          if (detailsEvent) {
+            setDetailsEvent(null);
+            openRegisterDialog(detailsEvent);
+          }
+        }}
+      />
 
       <TeamRegistrationDialog
         event={registerTarget && isTeamEvent(registerTarget.eventType) ? registerTarget : null}

@@ -1,62 +1,104 @@
+import { useAuth } from "@/context/AuthContext";
 import { DashboardCard } from "@/components/DashboardCard";
-import { BarChart3, Activity, Settings } from "lucide-react";
+import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader";
+import { ClubLogoUploader } from "@/components/ui/ClubLogoUploader";
+import { Badge } from "@/components/ui/badge";
+import { BarChart3, Activity, Mail, Shield, User, Building2 } from "lucide-react";
 
-export const ManagerAnalyticsView = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-      <p className="text-muted-foreground mt-2">Track performance, registrations, and budget metrics.</p>
-    </div>
-    <DashboardCard>
-      <div className="py-12 flex flex-col items-center justify-center text-center">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-          <BarChart3 className="h-6 w-6" />
-        </div>
-        <h3 className="text-lg font-semibold">Analytics</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Analytics dashboard will be implemented in a future phase.
-        </p>
-      </div>
-    </DashboardCard>
-  </div>
-);
 
-export const ManagerActivityView = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-3xl font-bold tracking-tight">Activity</h1>
-      <p className="text-muted-foreground mt-2">Monitor recent logs and event status updates.</p>
-    </div>
-    <DashboardCard>
-      <div className="py-12 flex flex-col items-center justify-center text-center">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-          <Activity className="h-6 w-6" />
-        </div>
-        <h3 className="text-lg font-semibold">Activity Logs</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Activity logs will be implemented in a future phase.
-        </p>
-      </div>
-    </DashboardCard>
-  </div>
-);
 
-export const ManagerSettingsView = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-      <p className="text-muted-foreground mt-2">Configure club preferences and profile settings.</p>
-    </div>
-    <DashboardCard>
-      <div className="py-12 flex flex-col items-center justify-center text-center">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-          <Settings className="h-6 w-6" />
+
+export const ManagerSettingsView = () => {
+  const { user, refreshProfile } = useAuth();
+
+  if (!user) return null;
+
+  const clubId = user.clubId;
+  const clubName = user.clubName ?? "My Club";
+
+  return (
+    <div className="space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">Configure club preferences and profile settings.</p>
+      </header>
+
+      {/* Profile Photo */}
+      <DashboardCard title="Profile Photo" subtitle="Upload a personal profile photo for your account.">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+          <ProfilePhotoUploader
+            userId={user.id}
+            currentUrl={null}
+            userName={user.name}
+            size="lg"
+            onUploaded={() => void refreshProfile()}
+          />
+
+          <div className="space-y-4 flex-1">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Display Name
+              </p>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-base font-semibold">{user.name ?? "Club Manager"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Email
+              </p>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">{user.email ?? "No email available"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Role
+              </p>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Badge variant="secondary" className="capitalize text-xs">
+                  Club Manager
+                </Badge>
+              </div>
+            </div>
+          </div>
         </div>
-        <h3 className="text-lg font-semibold">Club Settings</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Settings configuration will be implemented in a future phase.
-        </p>
-      </div>
-    </DashboardCard>
-  </div>
-);
+      </DashboardCard>
+
+      {/* Club Logo */}
+      {clubId && (
+        <DashboardCard title="Club Logo" subtitle="Upload or update the logo for your club.">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+            <ClubLogoUploader
+              clubId={clubId}
+              currentUrl={null}
+              clubName={clubName}
+              size="lg"
+            />
+
+            <div className="space-y-4 flex-1">
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  Club Name
+                </p>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <p className="text-base font-semibold">{clubName}</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The club logo appears on your dashboard and across club pages.
+                Upload a square image for best results. Accepted: JPG, PNG, WEBP — max 5 MB.
+              </p>
+            </div>
+          </div>
+        </DashboardCard>
+      )}
+    </div>
+  );
+};

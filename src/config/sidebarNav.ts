@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BarChart3,
-  Bell,
   Building2,
   Calendar,
   CalendarCheck,
@@ -10,7 +9,6 @@ import {
   CalendarPlus,
   CheckCircle,
   ClipboardList,
-  CreditCard,
   LayoutDashboard,
   MapPin,
   Settings,
@@ -36,10 +34,9 @@ export const studentNav: SidebarNavItem[] = [
   { label: "Dashboard", segment: "", icon: LayoutDashboard, end: true },
   { label: "Events", segment: "events", icon: Calendar },
   { label: "My Registrations", segment: "registrations", icon: CalendarCheck },
-  { label: "Notifications", segment: "notifications", icon: Bell },
   { label: "Profile", segment: "profile", icon: User },
-  { label: "Settings", segment: "settings", icon: Settings },
 ];
+
 
 export const managerNav: SidebarNavItem[] = [
   { label: "Dashboard", segment: "", icon: LayoutDashboard, end: true },
@@ -59,7 +56,6 @@ export const adminNav: SidebarNavItem[] = [
   { label: "Pending Approvals", segment: "pending", icon: CalendarClock },
   { label: "All Events", segment: "events", icon: Calendar },
   { label: "Clubs", segment: "clubs", icon: Building2 },
-  { label: "Venue Conflicts", segment: "venue-conflicts", icon: MapPin },
   { label: "Activity", segment: "activity", icon: Activity },
   { label: "Analytics", segment: "analytics", icon: BarChart3 },
   { label: "Settings", segment: "settings", icon: Settings },

@@ -15,7 +15,7 @@ export const ManagerMyEventsView = () => {
         </p>
       </div>
 
-      <ManagerEventsGrid events={myEvents} showActions={true} />
+      <ManagerEventsGrid events={myEvents} showActions={true} hideCoordinator={true} />
     </div>
   );
 };

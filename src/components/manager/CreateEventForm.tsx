@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, ImagePlus, Loader2, X } from "lucide-react";
+import { CalendarIcon, ImagePlus, Loader2, X, CheckCircle2 } from "lucide-react";
 import { CertificateTemplatePicker } from "@/components/manager/CertificateTemplatePicker";
+import { VenueConflictWarning } from "./VenueConflictWarning";
+import { checkVenueConflict } from "@/lib/checkVenueConflict";
+import type { ConflictEvent } from "@/data/events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +34,8 @@ export type CreateEventSubmitPayload = {
   minTeamSize: number | null;
   maxTeamSize: number | null;
   startsAt: Date;
+  endsAt: Date;
+  registrationClosesAt: Date | null;
   posterFile: File;
   certificatesEnabled?: boolean;
   certificateFile?: File | null;
@@ -50,7 +55,12 @@ export const CreateEventForm = ({ onCreate }: Props) => {
   const [description, setDescription] = useState("");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("17:00");
+  const [endTime, setEndTime] = useState("19:00");
+  const [regCloseDate, setRegCloseDate] = useState<Date | undefined>();
+  const [regCloseTime, setRegCloseTime] = useState("12:00");
   const [venue, setVenue] = useState("");
+  const [conflict, setConflict] = useState<ConflictEvent | null>(null);
+  const [isValidatingVenue, setIsValidatingVenue] = useState(false);
   const [category, setCategory] = useState<EventCategory | "">("");
   const [maxReg, setMaxReg] = useState<string>("");
   const [budget, setBudget] = useState<string>("");
@@ -96,7 +106,12 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setDescription("");
     setDate(undefined);
     setTime("17:00");
+    setEndTime("19:00");
+    setRegCloseDate(undefined);
+    setRegCloseTime("12:00");
     setVenue("");
+    setConflict(null);
+    setIsValidatingVenue(false);
     setCategory("");
     setMaxReg("");
     setBudget("");
@@ -114,6 +129,22 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     setCertNameX(null);
     setCertNameY(null);
   };
+
+  useEffect(() => {
+    const checkConflict = async () => {
+      if (!date || !venue.trim() || !time || !endTime) {
+        setConflict(null);
+        return;
+      }
+      setIsValidatingVenue(true);
+      const res = await checkVenueConflict(venue, date, time, endTime);
+      setConflict(res);
+      setIsValidatingVenue(false);
+    };
+
+    const timer = setTimeout(checkConflict, 500);
+    return () => clearTimeout(timer);
+  }, [venue, date, time, endTime]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +189,28 @@ export const CreateEventForm = ({ onCreate }: Props) => {
     const dt = new Date(date);
     dt.setHours(hh || 0, mm || 0, 0, 0);
 
+    const [ehh, emm] = endTime.split(":").map(Number);
+    const edt = new Date(date);
+    edt.setHours(ehh || 0, emm || 0, 0, 0);
+    
+    if (edt <= dt) {
+      return toast.error("End time must be after start time");
+    }
+
+    let regClosesDt: Date | null = null;
+    if (regCloseDate) {
+      const [rchh, rcmm] = regCloseTime.split(":").map(Number);
+      regClosesDt = new Date(regCloseDate);
+      regClosesDt.setHours(rchh || 0, rcmm || 0, 0, 0);
+      if (regClosesDt >= dt) {
+        return toast.error("Registration closing time must be before the event starts.");
+      }
+    }
+
+    if (conflict) {
+      return toast.error("Please resolve the venue conflict before submitting");
+    }
+
     setSubmitting(true);
     try {
       await onCreate({
@@ -171,6 +224,8 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         minTeamSize: minT,
         maxTeamSize: maxT,
         startsAt: dt,
+        endsAt: edt,
+        registrationClosesAt: regClosesDt,
         posterFile,
         certificatesEnabled: certEnabled,
         certificateFile: certEnabled ? certificateFile ?? null : null,
@@ -215,7 +270,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
           <p className="text-xs text-muted-foreground text-right">{description.length}/1000</p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Date</Label>
             <Popover>
@@ -245,7 +300,7 @@ export const CreateEventForm = ({ onCreate }: Props) => {
             </Popover>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="time">Time</Label>
+            <Label htmlFor="time">Start Time</Label>
             <Input
               id="time"
               type="time"
@@ -254,10 +309,62 @@ export const CreateEventForm = ({ onCreate }: Props) => {
               className="bg-secondary/60 border-border/60 h-11"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="endTime">End Time</Label>
+            <Input
+              id="endTime"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
+        </div>
+
+        {/* Registration Closing Date & Time */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Registration Closing Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  type="button"
+                  className={cn(
+                    "w-full h-11 justify-start text-left font-normal bg-secondary/60 border-border/60",
+                    !regCloseDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {regCloseDate ? format(regCloseDate, "PPP") : "Pick a date (optional)"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={regCloseDate}
+                  onSelect={setRegCloseDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="regCloseTime">Registration Closing Time</Label>
+            <Input
+              id="regCloseTime"
+              type="time"
+              value={regCloseTime}
+              onChange={(e) => setRegCloseTime(e.target.value)}
+              disabled={!regCloseDate}
+              className="bg-secondary/60 border-border/60 h-11"
+            />
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="venue">Venue</Label>
             <Input
               id="venue"
@@ -268,7 +375,24 @@ export const CreateEventForm = ({ onCreate }: Props) => {
               className="bg-secondary/60 border-border/60 h-11"
             />
           </div>
-          <div className="space-y-2">
+          
+          <div className="sm:col-span-2 empty:hidden">
+            {isValidatingVenue ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking venue availability...
+              </div>
+            ) : conflict ? (
+              <VenueConflictWarning conflictEvent={conflict} />
+            ) : venue.trim() && date && time && endTime && !conflict ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg w-fit animate-in fade-in zoom-in-95">
+                <CheckCircle2 className="h-4 w-4" />
+                This venue is available for the selected time.
+              </div>
+            ) : null}
+          </div>
+          
+          <div className="space-y-2 sm:col-span-2">
             <Label>Category</Label>
             <Select value={category} onValueChange={(v) => setCategory(v as EventCategory)}>
               <SelectTrigger className="h-11 bg-secondary/60 border-border/60">
@@ -386,12 +510,17 @@ export const CreateEventForm = ({ onCreate }: Props) => {
         <div className="flex flex-wrap gap-3 pt-2">
           <Button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !!conflict}
             className="bg-gradient-primary text-primary-foreground border-0 shadow-glow gap-2"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Submit for Approval
           </Button>
+          {conflict && (
+            <div className="w-full text-sm text-destructive mt-1">
+              Please choose another venue or modify the event timing before submitting.
+            </div>
+          )}
           <Button type="button" variant="ghost" onClick={reset} disabled={submitting}>
             Reset
           </Button>
