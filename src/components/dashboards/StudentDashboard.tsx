@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { TeamRegistrationDialog } from "@/components/student/TeamRegistrationDialog";
 import { registerTeamForEvent } from "@/lib/registrations";
 import { isTeamEvent, type TeamRegistrationDetails } from "@/data/teamRegistration";
+import { notifyRegistrationSuccess, notifyRegistrationClosed } from "@/lib/notifications";
 
 type DateFilter = "all" | "today" | "week" | "custom";
 type StudentEventCategory = EventCategory | "Hackathons" | "Workshops";
@@ -353,6 +354,9 @@ export const StudentDashboard = () => {
     const isFull = registrationCount(event) >= event.maxRegistrations;
     if (isFull) {
       toast.error("This event is full.");
+      if (user?.id) {
+        void notifyRegistrationClosed(user.id, event.id, event.title);
+      }
       return;
     }
 
@@ -418,6 +422,7 @@ export const StudentDashboard = () => {
         semester: teamDetails.leader.semester,
         teamDetails,
       });
+      await notifyRegistrationSuccess(user.id, registerTarget.id, registerTarget.title);
       toast.success("Your team is registered!");
       applyRegistrationSuccess(registerTarget);
       setRegisterTarget(null);
@@ -457,6 +462,7 @@ export const StudentDashboard = () => {
       return;
     }
 
+    await notifyRegistrationSuccess(user.id, registerTarget.id, registerTarget.title);
     toast.success("You're registered!");
     applyRegistrationSuccess(registerTarget);
     setRegisterTarget(null);

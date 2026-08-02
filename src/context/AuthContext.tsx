@@ -21,6 +21,7 @@ export type AuthUser = {
   role: Role;
   clubId: string | null;
   clubName?: string;
+   createdAt?: string; 
 };
 
 type LoginInput = {
@@ -68,8 +69,11 @@ function clubNameFromRow(clubs: unknown): string | undefined {
 }
 
 async function fetchProfile(userId: string, authEmail?: string | null): Promise<AuthUser | null> {
-  const selectWithClub = "id, full_name, email, role, club_id, clubs ( name )";
-  const selectBase = "id, full_name, email, role, club_id";
+ const selectWithClub =
+"id, full_name, email, role, club_id, created_at, clubs ( name )";
+
+const selectBase =
+"id, full_name, email, role, club_id, created_at";
 
   let { data, error } = await supabase.from("profiles").select(selectWithClub).eq("id", userId).maybeSingle();
 
@@ -98,7 +102,7 @@ async function fetchProfile(userId: string, authEmail?: string | null): Promise<
   }
 
   if (!data) return null;
-
+     console.log(data.created_at);
   return {
     id: data.id,
     name: data.full_name,
@@ -106,8 +110,11 @@ async function fetchProfile(userId: string, authEmail?: string | null): Promise<
     role: dbRoleToUi(data.role as DbAppRole),
     clubId: data.club_id,
     clubName: clubNameFromRow((data as { clubs?: unknown }).clubs),
+     createdAt: (data as { created_at?: string }).created_at,
+
   };
 }
+
 
 /** If the user confirmed email after signup, create profile from auth metadata. */
 async function ensureProfileFromSession(session: Session) {
@@ -245,6 +252,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const profile = await fetchProfile(session.user.id, session.user.email);
     setUser(profile);
   }, []);
+ 
+  
+
 
   useEffect(() => {
     let cancelled = false;
@@ -281,6 +291,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const profile = await fetchProfile(session.user.id, session.user.email);
     setUser(profile);
   }, []);
+ 
 
   const login = useCallback(async ({ email, password }: LoginInput) => {
     const normalizedEmail = email.trim().toLowerCase();

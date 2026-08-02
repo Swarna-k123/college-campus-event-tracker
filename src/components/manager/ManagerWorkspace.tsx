@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   AlertCircle,
-  CheckCircle,
   CheckCircle2,
   Clock,
   Eye,
@@ -27,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DashboardCard } from "@/components/DashboardCard";
@@ -42,6 +42,7 @@ import { mapEventRowToManagerEvent } from "@/lib/eventMap";
 import { uploadEventPoster } from "@/lib/uploadPoster";
 import { uploadCertificateTemplate } from "@/lib/uploadCertificate";
 import { fetchEventRegistrantsForManager } from "@/lib/registrations";
+import { notifyEventCancelled, notifyEventUpdates } from "@/lib/notifications";
 
 export type ManagerDashboardEvent = ManagerEvent & {
   reviewerName?: string;
@@ -345,6 +346,10 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
       if (payload.certificateNameX !== undefined) certNameX = payload.certificateNameX ?? null;
       if (payload.certificateNameY !== undefined) certNameY = payload.certificateNameY ?? null;
     }
+    const previousStartsAt = editing.date;
+    const previousVenue = editing.venue;
+    const previousCertificatesEnabled = Boolean(editing.certificatesEnabled || editing.certificateTemplateUrl);
+
     const { error: upErr } = await supabase
       .from("events")
       .update({
@@ -372,6 +377,19 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
       .eq("created_by", user.id);
 
     if (upErr) throw new Error(getSupabaseErrorMessage(upErr));
+
+    const nextCertificatesEnabled = Boolean(payload.certificatesEnabled ?? ((editing as any).certificatesEnabled ?? false));
+    await notifyEventUpdates({
+      eventId: editing.id,
+      eventTitle: payload.title.trim(),
+      oldVenue: previousVenue,
+      newVenue: payload.venue.trim(),
+      oldStartsAt: previousStartsAt,
+      newStartsAt: payload.startsAt,
+      oldCertificatesEnabled: previousCertificatesEnabled,
+      newCertificatesEnabled: nextCertificatesEnabled,
+    });
+
     toast.success("Event updated");
     setEditing(null);
     await queryClient.invalidateQueries({ queryKey: ["manager-events"] });
@@ -386,6 +404,7 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
       toast.error(getSupabaseErrorMessage(delErr));
       return;
     }
+    await notifyEventCancelled(deleting.id, deleting.title);
     toast.success(`Deleted "${deleting.title}"`);
     if (viewing?.id === deleting.id) setViewing(null);
     setDeleting(null);
@@ -582,48 +601,65 @@ const ManagerEventDetailsDialog = ({ event, open, onOpenChange, showActions, hid
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/40">
-              <Button 
-                variant="outline" 
-                className="flex-1 min-w-[140px] rounded-xl border-border/60 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-sm group/btn py-6" 
-                onClick={() => { onOpenChange(false); setViewing(event); }}
-              >
-                <Users className="h-5 w-5 mr-2 group-hover/btn:scale-110 transition-transform" /> 
-                <span className="font-semibold">View Registrations</span>
-              </Button>
-              
-              {showActions && (
-                <>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 xl:flex-none rounded-xl border-border/60 shadow-sm hover:bg-secondary transition-all group/btn py-6" 
-                    onClick={() => { onOpenChange(false); setAttendanceEvent(event); }} 
-                    disabled={count === 0}
-                    title="Attendance"
-                  >
-                    <CheckCircle className="h-5 w-5 xl:mr-2 group-hover/btn:scale-110 transition-transform" />
-                    <span className="inline xl:hidden 2xl:inline font-semibold">Attendance</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 xl:flex-none rounded-xl border-border/60 shadow-sm hover:bg-secondary transition-all group/btn py-6" 
-                    onClick={() => { onOpenChange(false); setEditing(event); }}
-                    title="Edit Event"
-                  >
-                    <Pencil className="h-5 w-5 xl:mr-2 group-hover/btn:scale-110 transition-transform" />
-                    <span className="inline xl:hidden 2xl:inline font-semibold">Edit</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 xl:flex-none rounded-xl border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm group/btn py-6" 
-                    onClick={() => { onOpenChange(false); setDeleting(event); }}
-                    title="Delete Event"
-                  >
-                    <Trash2 className="h-5 w-5 xl:mr-2 group-hover/btn:scale-110 transition-transform" />
-                    <span className="inline xl:hidden 2xl:inline font-semibold">Delete</span>
-                  </Button>
-                </>
-              )}
+            <div className="flex items-center justify-center gap-2 pt-4 border-t border-border/40">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-10 w-10 p-0 rounded-lg border-border/60 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-sm"
+                      onClick={() => { onOpenChange(false); setViewing(event); }}
+                    >
+                      <Users className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>View Registrations</TooltipContent>
+                </Tooltip>
+
+                {showActions && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="h-10 w-10 p-0 rounded-lg border-border/60 hover:bg-secondary transition-all shadow-sm"
+                          onClick={() => { onOpenChange(false); setAttendanceEvent(event); }}
+                          disabled={count === 0}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Attendance</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="h-10 w-10 p-0 rounded-lg border-border/60 hover:bg-secondary transition-all shadow-sm"
+                          onClick={() => { onOpenChange(false); setEditing(event); }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit Event</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="h-10 w-10 p-0 rounded-lg border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
+                          onClick={() => { onOpenChange(false); setDeleting(event); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Event</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
+              </TooltipProvider>
             </div>
           </div>
         </div>

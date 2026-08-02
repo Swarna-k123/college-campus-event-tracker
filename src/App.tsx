@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -26,11 +27,16 @@ import { ManagerAttendanceView } from "@/components/manager/views/ManagerAttenda
 import { ManagerAnalyticsView } from "@/components/manager/views/ManagerAnalyticsView";
 import { ManagerSettingsView } from "@/components/manager/views/ManagerPlaceholders";
 import { ManagerActivityView } from "@/components/manager/views/ManagerActivityView";
+import { triggerAutomaticNotifications } from "@/lib/notifications";
 
 const queryClient = new QueryClient();
 
 const RootRedirect = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    void triggerAutomaticNotifications();
+  }, []);
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center gap-2 text-muted-foreground">

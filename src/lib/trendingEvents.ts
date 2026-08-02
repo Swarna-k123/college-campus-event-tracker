@@ -6,12 +6,15 @@ export type TrendingEventCard = {
   title: string;
   club: string;
   posterUrl: string | null;
+  registrationCount: number;
+  startsAt: string;
 };
 
 type EventRow = {
   id: string;
   title: string;
   poster_url: string | null;
+    starts_at: string;
   clubs: { name: string } | { name: string }[] | null;
 };
 
@@ -25,8 +28,9 @@ function clubNameFromRow(clubs: EventRow["clubs"]): string {
 export async function loadTrendingEvents(limit = 4): Promise<TrendingEventCard[]> {
   const { data: rows, error } = await supabase
     .from("events")
-    .select("id, title, poster_url, clubs ( name )")
-    .eq("status", "approved");
+    .select("id, title, poster_url, starts_at, clubs ( name )")
+   .eq("status", "approved")
+.gte("starts_at", new Date().toISOString());
 
   if (error) throw new Error(getSupabaseErrorMessage(error));
   if (!rows?.length) return [];
@@ -51,8 +55,9 @@ export async function loadTrendingEvents(limit = 4): Promise<TrendingEventCard[]
       club: clubNameFromRow(row.clubs),
       posterUrl: row.poster_url?.trim() || null,
       registrationCount: countMap.get(row.id) ?? 0,
+       startsAt: row.starts_at,
     }))
     .sort((a, b) => b.registrationCount - a.registrationCount)
     .slice(0, limit)
-    .map(({ id, title, club, posterUrl }) => ({ id, title, club, posterUrl }));
+    .map(({ id, title, club, posterUrl ,registrationCount,startsAt}) => ({ id, title, club, posterUrl,registrationCount, startsAt,}));
 }

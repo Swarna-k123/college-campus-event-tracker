@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { loadTrendingEvents } from "@/lib/trendingEvents";
 import "./landing.css";
+import { loadLandingStats } from "@/lib/landingStats";
 
 const FEATURES = [
   {
@@ -66,12 +67,7 @@ const ROLES = [
   },
 ] as const;
 
-const STATS = [
-  { label: "Active Clubs", value: "50+" },
-  { label: "Events Hosted", value: "200+" },
-  { label: "Student Registrations", value: "5,000+" },
-  { label: "Venues Tracked", value: "120" },
-] as const;
+
 
 const scrollToEvents = () => {
   document.getElementById("events")?.scrollIntoView({ behavior: "smooth" });
@@ -86,6 +82,13 @@ const Landing = () => {
     queryFn: () => loadTrendingEvents(4),
     staleTime: 60_000,
   });
+  const {
+  data: stats,
+  isLoading: statsLoading,
+} = useQuery({
+  queryKey: ["landing-stats"],
+  queryFn: loadLandingStats,
+});
 
   return (
     <div className="landing-page min-h-screen overflow-x-hidden">
@@ -224,14 +227,36 @@ const Landing = () => {
               <h2 className="text-2xl md:text-3xl font-bold text-[#E5E7EB]">Campus at a glance</h2>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-              {STATS.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="landing-stat-value text-3xl md:text-4xl font-extrabold mb-2">{stat.value}</p>
-                  <p className="text-sm text-[#9CA3AF]">{stat.label}</p>
-                </div>
-              ))}
+             {[
+  {
+    label: "Active Clubs",
+    value: statsLoading ? "..." : stats?.clubs ?? 0,
+  },
+  {
+    label: "Events Hosted",
+    value: statsLoading ? "..." : stats?.events ?? 0,
+  },
+  {
+    label: "Student Registrations",
+    value: statsLoading ? "..." : stats?.registrations ?? 0,
+  },
+  {
+    label: "Venues Tracked",
+    value: statsLoading ? "..." : stats?.venues ?? 0,
+  },
+].map((stat) => (
+  <div key={stat.label} className="text-center">
+    <p className="landing-stat-value text-3xl md:text-4xl font-extrabold mb-2">
+      {stat.value}
+    </p>
+
+    <p className="text-sm text-[#9CA3AF]">
+      {stat.label}
+    </p>
+  </div>
+))}
             </div>
-            <p className="text-center text-xs text-[#6B7280] mt-8">Demo statistics — live data coming soon</p>
+            <p className="text-center text-xs text-[#6B7280] mt-8">  Live statistics from CampusHub</p>
           </div>
         </section>
 
@@ -287,10 +312,27 @@ const Landing = () => {
                     Trending
                   </span>
                 </div>
-                <div className="p-4 space-y-1">
-                  <h3 className="font-semibold text-[#E5E7EB] line-clamp-1">{event.title}</h3>
-                  <p className="text-xs text-[#9CA3AF] line-clamp-1">{event.club}</p>
-                </div>
+                <div className="p-4 space-y-2">
+  <h3 className="font-semibold text-[#E5E7EB] line-clamp-1">
+    {event.title}
+  </h3>
+
+  <p className="text-xs text-[#9CA3AF] line-clamp-1">
+    {event.club}
+  </p>
+
+  <div className="flex items-center gap-2 text-xs text-[#22D3EE]">
+    <CalendarDays className="h-3.5 w-3.5" />
+
+    <span>
+      {Math.ceil(
+        (new Date(event.startsAt).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24)
+      )}{" "}
+      Days Left
+    </span>
+  </div>
+</div>
               </article>
             ))}
           </div>

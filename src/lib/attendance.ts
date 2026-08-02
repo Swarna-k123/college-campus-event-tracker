@@ -1,6 +1,29 @@
 import { supabase } from "@/lib/supabase";
 import { getSupabaseErrorMessage } from "@/lib/db";
 
+export function extractRegistrationIdFromQr(value: string): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed === "object" && parsed !== null) {
+      const candidate = parsed.registrationId ?? parsed.registration_id ?? parsed.id;
+      return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+    }
+  } catch {
+    // fall through to simple string handling
+  }
+
+  if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 export type AttendanceStatus = "present" | "absent";
 
 export type DatabaseAttendanceStatus = "PRESENT" | "ABSENT";

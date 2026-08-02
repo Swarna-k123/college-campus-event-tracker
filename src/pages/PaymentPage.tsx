@@ -8,6 +8,7 @@ import { createMockPaymentForEvent, hasSuccessfulPayment } from "@/lib/payment";
 import { supabase } from "@/lib/supabase";
 import { getSupabaseErrorMessage } from "@/lib/db";
 import { toast } from "sonner";
+import { notifyRegistrationSuccess } from "@/lib/notifications";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -57,6 +58,10 @@ const PaymentPage = () => {
 
       if (rpcError) {
         throw new Error(getSupabaseErrorMessage(rpcError));
+      }
+
+      if (user?.id && eventId) {
+        await notifyRegistrationSuccess(user.id, eventId, eventName);
       }
 
       toast.success("Payment successful and registration complete.");

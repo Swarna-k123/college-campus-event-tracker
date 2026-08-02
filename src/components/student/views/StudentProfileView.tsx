@@ -10,6 +10,7 @@ import { Mail, Shield, User, Loader2, CheckCircle2, GraduationCap, Hash } from "
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+import { format } from "date-fns";
 export const StudentProfileView = () => {
   const { user, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState(user?.name ?? "");
@@ -182,8 +183,14 @@ export const StudentProfileView = () => {
           <DashboardCard title="Account Details" subtitle="Your account identifiers and security information.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <div className="rounded-xl border border-border/40 bg-secondary/30 px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">User ID</p>
-                <p className="text-xs font-mono text-muted-foreground truncate">{user.id}</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1"> you  joined on </p>
+               <p>
+  {new Date(user.createdAt).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  })}
+</p>
               </div>
               <div className="rounded-xl border border-border/40 bg-secondary/30 px-4 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Account Status</p>
