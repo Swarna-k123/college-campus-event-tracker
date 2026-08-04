@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Landing from "./pages/Landing.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
+import AttendanceCapturePage from "@/pages/AttendanceCapturePage";
 import { AuthProvider, getDashboardPathForRole, useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/routing/ProtectedRoute";
 import { PublicOnlyRoute } from "@/components/routing/PublicOnlyRoute";
@@ -118,6 +119,9 @@ const App = () => (
                   <Route path="settings" element={<ManagerSettingsView />} />
                 </Route>
               </Route>
+
+              {/* Public attendance capture route — auth handled inside the page */}
+              <Route path="/attendance/:sessionToken" element={<AttendanceCapturePage />} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

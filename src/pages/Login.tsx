@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { z } from "zod";
 import { Eye, EyeOff, GraduationCap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ const schema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const redirectTo = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -36,7 +39,12 @@ const Login = () => {
     try {
       const user = await login({ email, password });
       toast.success("Welcome back!");
-      navigate(getDashboardPathForRole(user.role), { replace: true });
+      // If there's a safe same-origin redirect (e.g. from /attendance/:token), use it
+      if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+        navigate(redirectTo, { replace: true });
+      } else {
+        navigate(getDashboardPathForRole(user.role), { replace: true });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unable to sign in. Please try again.";
       toast.error(msg);

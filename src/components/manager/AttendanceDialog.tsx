@@ -1,22 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Search, CheckCircle2, XCircle, Users, QrCode, Camera, CameraOff, ScanLine } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Search, CheckCircle2, XCircle, Users, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DashboardCard } from "@/components/DashboardCard";
 import type { ManagerEvent, Registrant } from "@/data/managerEvents";
-import { extractRegistrationIdFromQr, fetchEventAttendance, saveAttendance, type StudentAttendance, type AttendanceStatus, type DatabaseAttendanceStatus } from "@/lib/attendance";
+import { fetchEventAttendance, saveAttendance, type StudentAttendance, type AttendanceStatus, type DatabaseAttendanceStatus } from "@/lib/attendance";
 import { useAuth } from "@/context/AuthContext";
-import { notifyCertificateAvailableForPresentStudents } from "@/lib/notifications";
-import { supabase } from "@/lib/supabase";
-import { Html5Qrcode } from "html5-qrcode";
 
 function fromDatabaseStatus(status: DatabaseAttendanceStatus): AttendanceStatus {
   return status === "PRESENT" ? "present" : "absent";
 }
+
+const DURATION_OPTIONS = [
+  { label: "15 minutes", value: "15" },
+  { label: "30 minutes", value: "30" },
+  { label: "60 minutes", value: "60" },
+  { label: "120 minutes", value: "120" },
+];
 
 type FilterType = "all" | "present" | "absent";
 type ActiveTab = "manual" | "scan";
@@ -26,9 +37,10 @@ interface Props {
   registrants: Registrant[];
   loading?: boolean;
   onClose: () => void;
+  onStartQrSession?: (durationMinutes: number) => void;
 }
 
-export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props) => {
+export const AttendanceDialog = ({ event, registrants, loading, onClose, onStartQrSession }: Props) => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
@@ -36,84 +48,13 @@ export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("manual");
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanMessage, setScanMessage] = useState<string>("");
-  const [scanState, setScanState] = useState<"idle" | "success" | "error">("idle");
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerRef = useRef<HTMLDivElement | null>(null);
-  const scanInProgressRef = useRef(false);
-  const activeCameraIdRef = useRef<string | null>(null);
+  const [sessionDuration, setSessionDuration] = useState("60");
 
   useEffect(() => {
     if (event && registrants.length > 0) {
       loadAttendance();
     }
   }, [event, registrants]);
-
-  useEffect(() => {
-    if (activeTab !== "scan" || !event || !scannerContainerRef.current) {
-      return;
-    }
-
-    const startScanner = async () => {
-      if (scannerRef.current) {
-        return;
-      }
-
-      setIsScanning(true);
-      setScanMessage("Scanning...");
-      setScanState("idle");
-
-      const scanner = new Html5Qrcode(scannerContainerRef.current!.id);
-      scannerRef.current = scanner;
-
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras?.length) {
-          throw new Error("No camera found");
-        }
-
-        const backCamera = cameras.find((camera) => /back|rear|environment/i.test(camera.label)) ?? cameras[0];
-        const cameraId = backCamera.id;
-        activeCameraIdRef.current = cameraId;
-
-        await scanner.start(
-          cameraId,
-          {
-            fps: 10,
-            qrbox: {
-              width: 250,
-              height: 250,
-            },
-          },
-          async (decodedText) => {
-            if (scanInProgressRef.current) return;
-            scanInProgressRef.current = true;
-            try {
-              await handleQrAttendance(decodedText);
-            } finally {
-              scanInProgressRef.current = false;
-            }
-          },
-          () => undefined,
-        );
-      } catch (error) {
-        const friendlyMessage = error instanceof Error ? error.message : "Unable to start camera";
-        setScanState("error");
-        setScanMessage(friendlyMessage === "NotFoundError" || friendlyMessage === "NotAllowedError"
-          ? "Camera permission was denied."
-          : friendlyMessage);
-        setIsScanning(false);
-        await stopScanner();
-      }
-    };
-
-    void startScanner();
-
-    return () => {
-      void stopScanner();
-    };
-  }, [activeTab, event]);
 
   const loadAttendance = async () => {
     if (!event) return;
@@ -150,196 +91,6 @@ export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props
     );
   };
 
-  const handleQrAttendance = async (decodedText: string) => {
-    if (!event || !user) return;
-
-    let payload: { registrationId?: string; eventId?: string } | null = null;
-    try {
-      const parsed = JSON.parse(decodedText);
-      if (parsed && typeof parsed === "object") {
-        payload = parsed as { registrationId?: string; eventId?: string };
-      }
-    } catch {
-      payload = null;
-    }
-
-    const registrationId = payload?.registrationId ?? extractRegistrationIdFromQr(decodedText);
-    const scannedEventId = payload?.eventId ?? null;
-
-    if (!registrationId) {
-      setScanState("error");
-      setScanMessage("Invalid QR code.");
-      toast.error("Invalid QR code.");
-      return;
-    }
-
-    if (scannedEventId && scannedEventId !== event.id) {
-      setScanState("error");
-      setScanMessage("This QR belongs to another event.");
-      toast.error("This QR belongs to another event.");
-      return;
-    }
-
-    try {
-      console.debug("[QR Scan] Querying event_registrations for id:", registrationId, "event:", event.id);
-
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select("id, student_id, event_id")
-        .eq("id", registrationId)
-        .maybeSingle();
-
-      console.debug("[QR Scan] event_registrations result:", { data, error });
-
-      if (error || !data) {
-        setScanState("error");
-        setScanMessage("Invalid QR code.");
-        toast.error("Invalid QR code.");
-        return;
-      }
-
-      if (data.event_id !== event.id) {
-        setScanState("error");
-        setScanMessage("This QR belongs to another event.");
-        toast.error("This QR belongs to another event.");
-        return;
-      }
-
-      // Registration exists and belongs to this event — no further status check needed.
-
-      const registrationStudentId = data.student_id;
-      const existingAttendance = await supabase
-        .from("attendance")
-        .select("id, status")
-        .eq("event_id", event.id)
-        .eq("student_id", registrationStudentId)
-        .maybeSingle();
-
-      console.debug("[QR Scan] Existing attendance record:", existingAttendance.data);
-
-      if (existingAttendance.data?.id) {
-        const currentStatus = existingAttendance.data.status === "PRESENT" ? "present" : "absent";
-        if (currentStatus === "present") {
-          setScanState("error");
-          setScanMessage("Attendance already recorded.");
-          toast.warning("Attendance already recorded.");
-          return;
-        }
-      }
-
-      const { error: upsertError } = existingAttendance.data?.id
-        ? await supabase
-            .from("attendance")
-            .update({
-              status: "PRESENT",
-              marked_by: user.id,
-              marked_at: new Date().toISOString(),
-            })
-            .eq("id", existingAttendance.data.id)
-        : await supabase.from("attendance").insert({
-            event_id: event.id,
-            student_id: registrationStudentId,
-            status: "PRESENT",
-            marked_by: user.id,
-            marked_at: new Date().toISOString(),
-          });
-
-      if (upsertError) {
-        throw upsertError;
-      }
-
-      setAttendanceData((prev) =>
-        prev.map((student) =>
-          student.studentId === registrationStudentId ? { ...student, status: "present" } : student
-        )
-      );
-
-      setScanState("success");
-      setScanMessage("Attendance marked successfully.");
-      toast.success("Attendance marked successfully.");
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-        } catch {
-          // Ignore stop errors while finalizing the successful scan.
-        }
-      }
-      setIsScanning(false);
-    } catch (error) {
-      setScanState("error");
-      setScanMessage("Invalid QR code.");
-      toast.error(error instanceof Error ? error.message : "Invalid QR code.");
-    }
-  };
-
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Ignore stop errors while cleaning up
-      }
-      try {
-        await scannerRef.current.clear();
-      } catch {
-        // Ignore clear errors while cleaning up
-      }
-      scannerRef.current = null;
-    }
-    scanInProgressRef.current = false;
-    activeCameraIdRef.current = null;
-    setIsScanning(false);
-    setScanState("idle");
-    setScanMessage("");
-  };
-
-  const handleScanAnother = async () => {
-    if (!scannerRef.current) {
-      setScanState("idle");
-      setScanMessage("Scanning...");
-      setIsScanning(true);
-      return;
-    }
-
-    try {
-      await scannerRef.current.stop();
-      const cameraId = activeCameraIdRef.current ?? "user";
-      await scannerRef.current.start(
-        cameraId,
-        {
-          fps: 10,
-          qrbox: {
-            width: 250,
-            height: 250,
-          },
-        },
-        async (decodedText) => {
-          if (scanInProgressRef.current) return;
-          scanInProgressRef.current = true;
-          try {
-            await handleQrAttendance(decodedText);
-          } finally {
-            scanInProgressRef.current = false;
-          }
-        },
-        () => undefined,
-      );
-      setScanState("idle");
-      setScanMessage("Scanning...");
-      setIsScanning(true);
-    } catch (error) {
-      const friendlyMessage = error instanceof Error ? error.message : "Unable to restart camera";
-      setScanState("error");
-      setScanMessage(friendlyMessage);
-      setIsScanning(false);
-      await stopScanner();
-    }
-  };
-
-  const handleStopCamera = async () => {
-    await stopScanner();
-  };
-
   const handleMarkAllPresent = () => {
     setAttendanceData((prev) => prev.map((student) => ({ ...student, status: "present" })));
   };
@@ -349,7 +100,6 @@ export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props
     setIsSaving(true);
     try {
       await saveAttendance(event.id, attendanceData, user.id);
-      await notifyCertificateAvailableForPresentStudents(event.id, event.title);
       toast.success("Attendance saved successfully");
       onClose();
     } catch (error) {
@@ -375,7 +125,6 @@ export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props
   const absentCount = attendanceData.filter((s) => s.status === "absent").length;
   const markedCount = attendanceData.filter((s) => s.status === "present").length;
   const progressPercent = totalStudents > 0 ? Math.round((markedCount / totalStudents) * 100) : 0;
-  const scannerId = useMemo(() => `attendance-scanner-${event?.id ?? "dialog"}`, [event?.id]);
 
   if (!event) return null;
 
@@ -451,50 +200,49 @@ export const AttendanceDialog = ({ event, registrants, loading, onClose }: Props
             </div>
 
             {activeTab === "scan" ? (
-              <div className="space-y-4 rounded-2xl border border-border/60 bg-card/70 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-semibold">QR Attendance Scanner</p>
-                    <p className="text-sm text-muted-foreground">Point the camera at the student entry pass to mark attendance.</p>
+              <div className="space-y-4 rounded-2xl border border-border/60 bg-card/70 p-6">
+                <div className="text-center space-y-2">
+                  <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+                    <QrCode className="h-7 w-7 text-primary" />
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleStopCamera} className="border-border/60">
-                      <CameraOff className="h-4 w-4 mr-2" /> Stop Camera
-                    </Button>
-                    {scanState === "success" && (
-                      <Button variant="outline" onClick={handleScanAnother} className="border-border/60">
-                        <ScanLine className="h-4 w-4 mr-2" /> Scan Another
-                      </Button>
-                    )}
-                  </div>
+                  <p className="font-semibold text-lg">QR Attendance Session</p>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                    Start a live QR session. A full-screen QR code will be displayed for students to scan and mark their attendance automatically.
+                  </p>
                 </div>
 
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/60 p-4">
-                  <div
-                    id={scannerId}
-                    ref={scannerContainerRef}
-                    className={cn(
-                      "w-full max-w-[420px] overflow-hidden rounded-2xl border border-border/60 bg-black/90",
-                      scanState === "success" && "ring-4 ring-emerald-500/70",
-                      scanState === "error" && "ring-4 ring-destructive/70"
-                    )}
-                  />
-                  <div className="mt-4 flex min-h-10 items-center justify-center px-2 text-center">
-                    {isScanning ? (
-                      <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                        <Camera className="h-4 w-4" />
-                        <span>{scanMessage || "Scanning..."}</span>
-                      </div>
-                    ) : (
-                      <span className={cn(
-                        "text-sm font-medium",
-                        scanState === "success" ? "text-emerald-600" : scanState === "error" ? "text-destructive" : "text-muted-foreground"
-                      )}>
-                        {scanMessage || "Camera stopped."}
-                      </span>
-                    )}
+                <div className="max-w-xs mx-auto space-y-3 pt-2">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">Session Duration</p>
+                    <Select value={sessionDuration} onValueChange={setSessionDuration}>
+                      <SelectTrigger className="bg-secondary/60 border-border/60">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DURATION_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  <Button
+                    className="w-full gap-2 bg-gradient-primary hover:opacity-90 border-0 text-primary-foreground shadow-glow"
+                    onClick={() => {
+                      onClose();
+                      onStartQrSession?.(parseInt(sessionDuration, 10));
+                    }}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Launch QR Session
+                  </Button>
                 </div>
+
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  Students scan the QR to mark themselves present. Results update in real time.
+                </p>
               </div>
             ) : (
               <>

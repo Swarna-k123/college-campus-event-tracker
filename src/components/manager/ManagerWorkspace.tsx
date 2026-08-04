@@ -34,6 +34,7 @@ import { CreateEventForm, type CreateEventSubmitPayload } from "@/components/man
 import { EditEventForm, type EditEventSubmitPayload } from "@/components/manager/EditEventForm";
 import { RegistrationsDialog } from "@/components/manager/RegistrationsDialog";
 import { AttendanceDialog } from "@/components/manager/AttendanceDialog";
+import { AttendanceSessionPage } from "@/components/manager/AttendanceSessionPage";
 import { type ManagerEvent, type ManagerStatus, registrationCount } from "@/data/managerEvents";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +44,7 @@ import { uploadEventPoster } from "@/lib/uploadPoster";
 import { uploadCertificateTemplate } from "@/lib/uploadCertificate";
 import { fetchEventRegistrantsForManager } from "@/lib/registrations";
 import { notifyEventCancelled, notifyEventUpdates } from "@/lib/notifications";
+import { createAttendanceSession } from "@/lib/attendanceSessions";
 
 export type ManagerDashboardEvent = ManagerEvent & {
   reviewerName?: string;
@@ -156,6 +158,13 @@ type ClubMember = {
   joinedAt?: string | null;
 };
 
+type ActiveSession = {
+  sessionId: string;
+  sessionToken: string;
+  expiresAt: string;
+  event: ManagerDashboardEvent;
+};
+
 type ManagerWorkspaceContextValue = {
   events: ManagerDashboardEvent[];
   myEvents: ManagerDashboardEvent[];
@@ -172,6 +181,7 @@ type ManagerWorkspaceContextValue = {
   attendanceEvent: ManagerDashboardEvent | null;
   setAttendanceEvent: (e: ManagerDashboardEvent | null) => void;
   handleCreate: (payload: CreateEventSubmitPayload) => Promise<void>;
+  startAttendanceSession: (event: ManagerDashboardEvent, durationMinutes?: number) => Promise<void>;
 };
 
 const ManagerWorkspaceContext = createContext<ManagerWorkspaceContextValue | null>(null);
@@ -189,6 +199,7 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
   const [deleting, setDeleting] = useState<ManagerDashboardEvent | null>(null);
   const [editing, setEditing] = useState<ManagerDashboardEvent | null>(null);
   const [attendanceEvent, setAttendanceEvent] = useState<ManagerDashboardEvent | null>(null);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
 
   const {
     data: membership,
@@ -413,6 +424,20 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
     await queryClient.invalidateQueries({ queryKey: ["student-approved-events"] });
   };
 
+  const startAttendanceSession = async (event: ManagerDashboardEvent, durationMinutes: number = 60) => {
+    if (!user?.id) return;
+    try {
+      const { sessionToken, sessionId, expiresAt } = await createAttendanceSession(
+        event.id,
+        user.id,
+        durationMinutes
+      );
+      setActiveSession({ sessionId, sessionToken, expiresAt, event });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start attendance session");
+    }
+  };
+
   const value: ManagerWorkspaceContextValue = {
     events,
     myEvents,
@@ -429,6 +454,7 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
     attendanceEvent,
     setAttendanceEvent,
     handleCreate,
+    startAttendanceSession,
   };
 
   return (
@@ -447,6 +473,12 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
         registrants={attendanceRegs}
         loading={attendanceRegsLoading}
         onClose={() => setAttendanceEvent(null)}
+        onStartQrSession={(durationMinutes) => {
+          if (attendanceEvent) {
+            setAttendanceEvent(null);
+            void startAttendanceSession(attendanceEvent, durationMinutes);
+          }
+        }}
       />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
@@ -476,6 +508,17 @@ export const ManagerWorkspaceProvider = ({ children }: { children: ReactNode }) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Full-screen QR Attendance Session overlay */}
+      {activeSession && (
+        <AttendanceSessionPage
+          event={activeSession.event}
+          sessionId={activeSession.sessionId}
+          sessionToken={activeSession.sessionToken}
+          expiresAt={activeSession.expiresAt}
+          onEnd={() => setActiveSession(null)}
+        />
+      )}
     </ManagerWorkspaceContext.Provider>
   );
 };

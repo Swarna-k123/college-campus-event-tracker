@@ -1,15 +1,13 @@
-import { Calendar, Clock, MapPin, Users, Download, Award, Building2, Tag, Armchair, QrCode } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Download, Award, Building2, Tag, Armchair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ManagerEvent } from "@/data/managerEvents";
 import { registrationCount } from "@/data/managerEvents";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { downloadCertificate, checkCertificateEligibility } from "@/lib/downloadCertificate";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
-import { EntryPassDialog } from "@/components/student/EntryPassDialog";
 
 export const categoryStyles: Record<string, string> = {
   Technical: "bg-primary/20 text-primary border-primary/40",
@@ -72,8 +70,6 @@ export const EventCard = ({
 }: Props) => {
   const { user } = useAuth();
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isPassOpen, setIsPassOpen] = useState(false);
-  const [registrationId, setRegistrationId] = useState<string | null>(null);
   const count = registrationCount(event);
   const seatsLeft = Math.max(0, event.maxRegistrations - count);
   const isFull = seatsLeft === 0;
@@ -83,39 +79,6 @@ export const EventCard = ({
   const isRegistrationClosed = 
     (event.registrationClosesAt && +new Date(event.registrationClosesAt) < now) ||
     (endTime < now);
-
-  useEffect(() => {
-    if (!isRegistered || !user?.id || !event.id) {
-      setRegistrationId(null);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadRegistrationId = async () => {
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select("id")
-        .eq("student_id", user.id)
-        .eq("event_id", event.id)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (error) {
-        setRegistrationId(null);
-        return;
-      }
-
-      setRegistrationId((data as { id: string } | null)?.id ?? null);
-    };
-
-    void loadRegistrationId();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [event.id, isRegistered, user?.id]);
 
   const handleCertificateClick = async () => {
     if (!user) return;
@@ -244,14 +207,6 @@ export const EventCard = ({
         {isRegistered ? (
           <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 gap-2 border-border/60 text-sm"
-                onClick={(e) => { e.stopPropagation(); setIsPassOpen(true); }}
-              >
-                <QrCode className="h-4 w-4" /> Show Entry Pass
-              </Button>
               {showCertificateButton && (
                 <Button
                   type="button"
@@ -266,6 +221,11 @@ export const EventCard = ({
                     <><Download className="h-4 w-4" /> Download Certificate</>
                   )}
                 </Button>
+              )}
+              {!showCertificateButton && (
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                  <span className="text-xs font-semibold text-emerald-400">✓ Registered</span>
+                </div>
               )}
             </div>
           </div>
@@ -288,17 +248,6 @@ export const EventCard = ({
         )}
       </div>
 
-      {registrationId && (
-        <EntryPassDialog
-          open={isPassOpen}
-          onClose={() => setIsPassOpen(false)}
-          registrationId={registrationId}
-          eventId={event.id}
-          eventTitle={event.title}
-          eventDate={event.date}
-          eventVenue={event.venue}
-        />
-      )}
     </article>
   );
 };
