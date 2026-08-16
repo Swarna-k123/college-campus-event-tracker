@@ -1,563 +1,397 @@
-# Welcome to your Lovable project
+# CampusHub- Centralized college event management system
+
+> A full-stack campus event management platform that streamlines event discovery, registration, attendance, and certificate generation for students and club managers.
+
+## 🚀 Overviews
+
+CampusHub is a role-based campus event management system designed to replace fragmented event registration and attendance processes with a centralized platform.
+
+Students can discover and register for events, access their registrations, mark attendance through QR-based or manual verification, and receive certificates after successfully attending an event.
+
+Club managers can create and manage events, monitor registrations, conduct attendance sessions, and manage certificates through a dedicated dashboard.
+
+The system uses **React, TypeScript, Supabase, PostgreSQL, and Tailwind CSS** with role-based access control and database-level security.
+
+---
 
-TODO: Document your project here
-# CampusHub – Project Architecture
+## ✨ Key Features
 
-## Project Overview
+### 👨‍🎓 Student
 
-CampusHub is a modern Campus Event Management System built for colleges.
+* Browse and search campus events
+* View event details, venue, date, and capacity
+* Register for events
+* Manage registered events
+* Access event entry passes
+* QR-based attendance
+* View attendance status
+* Download certificates for eligible events
+* Receive event and certificate notifications
+* Manage profile and account settings
 
-The platform connects Students, Club Managers, and Administrators into one centralized event management system.
+### 🧑‍💼 Club Manager
 
-Primary goals:
+* Create and manage club events
+* Track event registrations
+* View registered students
+* Conduct **manual attendance**
+* Start **dynamic QR attendance sessions**
+* Display a session QR code for event participants
+* Automatically validate QR attendance
+* Monitor live attendance statistics
+* End attendance sessions manually
+* Manage event certificates
+* Upload certificate templates
+* Generate personalized certificates using student information
 
-- Simplify event creation
-- Improve event promotion
-- Centralize registrations
-- Reduce manual work
-- Allow admin approval workflow
-- Provide modern startup-style UI
+### 🔐 Authentication & Authorization
 
+* Supabase Authentication
+* Role-based access control
+* Separate Student, Club Manager, and Admin workflows
+* Protected dashboard routes
+* Database-level Row Level Security (RLS)
 
---------------------------------------------------
-TECH STACK
---------------------------------------------------
+---
 
-Frontend
-- React
-- TypeScript
-- TailwindCSS
-- Shadcn UI
-- React Router
+## 📱 QR Attendance System
+
+CampusHub uses a **session-based QR attendance workflow** rather than generating a permanent QR code for every student.
+
+When a club manager starts attendance:
+
+```text
+Manager
+   ↓
+Start Attendance
+   ↓
+Create Attendance Session
+   ↓
+Generate Secure Session Token
+   ↓
+Display Dynamic QR Code
+```
+
+The QR code contains only a randomly generated attendance session token.
+
+When a student scans the QR code:
+
+```text
+Scan QR
+   ↓
+Open CampusHub Attendance URL
+   ↓
+Authentication Check
+   ↓
+Session Validation
+   ↓
+Event Validation
+   ↓
+Registration Validation
+   ↓
+Duplicate Attendance Check
+   ↓
+Mark Student Present
+```
+
+The system validates:
+
+* Student authentication
+* Attendance session existence
+* Session expiration
+* Session activity status
+* Event ownership
+* Student event registration
+* Duplicate attendance
+
+Attendance records store the relevant student, event, session, and timestamp information.
+
+### Manual Attendance
+
+QR attendance does not replace manual attendance.
+
+Club managers can still manually mark students as:
+
+* Present
+* Absent
+
+This provides a fallback when a student's device or camera is unavailable.
+
+---
+
+## 📜 Automated Certificate Generation
+
+After attendance is recorded, eligible students can generate their event certificate.
+
+Club managers upload a certificate template during event setup.
+
+CampusHub uses the student's registered information to populate the appropriate placeholder in the template and generate a personalized certificate.
 
-Backend
-- Supabase
+```text
+Event
+  ↓
+Student Registration
+  ↓
+Attendance Confirmed
+  ↓
+Certificate Eligibility
+  ↓
+Personalized Certificate
+  ↓
+Student Download
+```
 
-Authentication
-- Supabase Auth
+---
 
-Database
-- PostgreSQL (Supabase)
+## 🏗️ System Architecture
+
+```text
+                    ┌──────────────────────┐
+                    │      CampusHub       │
+                    │    React + TS UI     │
+                    └──────────┬───────────┘
+                               │
+                 ┌─────────────┴─────────────┐
+                 │                           │
+          Authentication                Application
+                 │                           │
+                 ▼                           ▼
+        ┌────────────────┐        ┌────────────────────┐
+        │ Supabase Auth  │        │ React Query / API  │
+        └────────────────┘        └──────────┬─────────┘
+                                             │
+                                             ▼
+                                  ┌────────────────────┐
+                                  │ Supabase/Postgres  │
+                                  │                    │
+                                  │ Profiles           │
+                                  │ Clubs              │
+                                  │ Events             │
+                                  │ Registrations      │
+                                  │ Attendance         │
+                                  │ Sessions           │
+                                  │ Certificates       │
+                                  └────────────────────┘
+```
+
+---
+
+## 🗄️ Data Model
+
+The application uses PostgreSQL through Supabase.
+
+Core entities include:
+
+```text
+Profiles
+   │
+   ├── Student
+   ├── Club Manager
+   └── Admin
+
+Clubs
+   │
+   └── Events
+          │
+          ├── Registrations
+          ├── Attendance
+          ├── Attendance Sessions
+          └── Certificates
+```
+
+The database uses relationships, constraints, triggers, and Row Level Security policies to protect application data.
+
+---
+
+## 🔒 Security
+
+CampusHub implements security at both the application and database layers.
+
+### Application-level
+
+* Protected routes
+* Role-based authorization
+* Authenticated attendance
+* Attendance session validation
+* Duplicate attendance prevention
+
+### Database-level
+
+* PostgreSQL foreign-key relationships
+* Row Level Security (RLS)
+* Restricted access based on user roles
+* Controlled access to event and registration data
+
+Sensitive credentials such as Supabase service-role keys are kept outside the client application.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
 
-Storage
-- Supabase Storage
-(Event posters)
+* React
+* TypeScript
+* Tailwind CSS
+* React Query
+* React Router
+* shadcn/ui
+* Lucide Icons
 
-Deployment
-- Vercel / Netlify (Frontend)
+### Backend / Database
 
+* Supabase
+* PostgreSQL
+* Supabase Authentication
+* Supabase Storage
+* Row Level Security
 
---------------------------------------------------
-DATABASE TABLES
---------------------------------------------------
+### Additional Technologies
 
-1. profiles
+* QR code generation and scanning
+* PDF/certificate processing
+* Git/GitHub
+* Vercel
 
-Stores every user.
+---
 
-Roles:
-- student
-- club_manager
-- admin
+## 📂 Project Structure
 
-Columns
+```text
+src/
+├── components/
+│   ├── layout/
+│   ├── manager/
+│   └── ui/
+│
+├── context/
+│   └── AuthContext.tsx
+│
+├── data/
+│
+├── lib/
+│   ├── attendance.ts
+│   ├── notifications.ts
+│   ├── supabase.ts
+│   └── ...
+│
+├── pages/
+│   ├── Landing.tsx
+│   ├── Login.tsx
+│   ├── Signup.tsx
+│   ├── StudentDashboardPage.tsx
+│   ├── ManagerDashboardPage.tsx
+│   ├── AdminDashboardPage.tsx
+│   └── AttendanceCapturePage.tsx
+│
+└── App.tsx
+```
 
-- id
-- email
-- full_name
-- role
-- usn
-- semester
-- department
-- phone_number
-- club_id
-- created_at
+---
 
+## ⚙️ Getting Started
 
----------------------------------------
+### Prerequisites
 
-2. clubs
+* Node.js 18+
+* npm
+* Supabase project
 
-Stores clubs.
+### Installation
 
-Columns
+```bash
+git clone https://github.com/Swarna-k123/college-campus-event-tracker.git
 
-- id
-- club_name
-- description
-- created_at
+cd college-campus-event-tracker
 
+npm install
+```
 
----------------------------------------
+### Environment Variables
 
-3. events
+Create a `.env` file:
 
-Stores every event.
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-Columns
+Never commit private or service-role credentials to GitHub.
 
-- id
-- club_id
-- event_name
-- description
-- venue
-- date
-- time
-- budget
-- event_type
-- min_team_size
-- max_team_size
-- status
-- rejection_reason
-- rejected_by
-- poster_url
-- created_at
+### Run Locally
 
+```bash
+npm run dev
+```
 
-Status values
+The application will start on the local development server.
 
-Pending
-Approved
-Rejected
+---
 
+## 🧪 Testing
 
----------------------------------------
+The project includes component-level tests using:
 
-4. event_registrations
+* Vitest
+* React Testing Library
+* Testing Library Jest DOM
 
-Stores registrations.
+Example:
 
-Columns
+```bash
+npm run test
+```
 
-- id
-- event_id
-- student_id
-- team_details (JSONB)
-- registered_at
+---
 
+## 🌐 Deployment
 
----------------------------------------
+The frontend can be deployed using Vercel.
 
-5. club_manager_access
+The application uses client-side routing, so production deployments should be configured to redirect application routes to the main `index.html` entry point.
 
-Stores club signup access codes.
+---
 
-Columns
+## 🎯 Engineering Highlights
 
-- id
-- club_name
-- access_code
-- created_at
+CampusHub demonstrates practical full-stack engineering concepts including:
 
-IMPORTANT
+* Role-based application architecture
+* Relational database design
+* PostgreSQL foreign-key relationships
+* Row Level Security
+* Authentication and protected routes
+* QR-based event attendance
+* Time-limited attendance sessions
+* Duplicate attendance prevention
+* Real-time attendance tracking
+* Automated certificate generation
+* File storage
+* Responsive dashboard design
+* API and external-service integration
+* Component-based React architecture
 
-Access codes are reusable.
+---
 
-One access code may be used by multiple club managers.
+## 🔮 Future Improvements
 
-Never invalidate access codes after signup.
+Potential future enhancements include:
 
+* Google Calendar integration
+* Email reminders
+* Advanced event analytics
+* Attendance reports and exports
+* Improved certificate template editor
+* Push notifications
+* Event recommendation system
+* Mobile application
 
---------------------------------------------------
-USER ROLES
---------------------------------------------------
+---
 
-1. Student
+## 👨‍💻 Project
 
-Can
+**CampusHub — Campus Event Management Platform**
 
-- Register
-- Login
-- Browse approved events
-- Register individual events
-- Register team events
-- View registered events
-- Edit profile
+Built with React, TypeScript, Supabase, PostgreSQL, and Tailwind CSS.
 
-Cannot
-
-- Create events
-- Approve events
-- Access admin pages
-
-
----------------------------------------
-
-2. Club Manager
-
-Can
-
-- Register using access code
-- Login
-- Create events
-- Upload posters
-- Edit own events
-- Delete own events
-- View registrations
-- Export registrations CSV
-
-Cannot
-
-- Approve events
-- View other clubs' registrations
-- Access admin dashboard
-
-
----------------------------------------
-
-3. Admin
-
-Created manually inside Supabase Auth.
-
-Cannot register from UI.
-
-Can
-
-- Login
-- View every event
-- Approve events
-- Reject events
-- Search clubs
-- View all registrations
-- View analytics
-
-
---------------------------------------------------
-AUTHENTICATION FLOW
---------------------------------------------------
-
-Student Signup
-
-Signup
-
-↓
-
-Supabase Auth
-
-↓
-
-Create profile
-
-↓
-
-Role = student
-
-↓
-
-Student Dashboard
-
-
----------------------------------------
-
-Club Manager Signup
-
-Enter
-
-- Name
-- Email
-- Password
-- Club Name
-- Manager Access Code
-
-↓
-
-Validate
-
-club_manager_access
-
-↓
-
-Create Auth User
-
-↓
-
-Create profile
-
-role = club_manager
-
-↓
-
-Create club if needed
-
-OR
-
-Attach existing club
-
-↓
-
-Manager Dashboard
-
-
-IMPORTANT
-
-Never invalidate access codes.
-
-Multiple managers may use same code.
-
-
----------------------------------------
-
-Admin Login
-
-Admin exists only inside Supabase Auth.
-
-No signup page.
-
-After login
-
-↓
-
-Role = admin
-
-↓
-
-Admin Dashboard
-
-
---------------------------------------------------
-EVENT WORKFLOW
---------------------------------------------------
-
-Club Manager
-
-↓
-
-Create Event
-
-↓
-
-Status
-
-Pending
-
-↓
-
-Admin Review
-
-↓
-
-Approved
-
-↓
-
-Visible on
-
-Student Dashboard
-
-Landing Page
-
-Trending Events
-
-Analytics
-
-
-OR
-
-
-Rejected
-
-↓
-
-Visible only to manager
-
-Shows rejection reason
-
-
---------------------------------------------------
-TEAM REGISTRATION WORKFLOW
---------------------------------------------------
-
-Event Type
-
-Individual
-
-↓
-
-One registration
-
-Stored inside event_registrations
-
-
----------------------------------------
-
-Event Type
-
-Team
-
-↓
-
-Student chooses team size
-
-Allowed
-
-min_team_size
-
-↓
-
-max_team_size
-
-↓
-
-Registration form dynamically generates member fields.
-
-↓
-
-Store entire team inside
-
-team_details JSONB
-
-
-IMPORTANT
-
-Do NOT ask team size separately if member count is already inferred.
-
-The number of generated member forms MUST depend on
-
-min_team_size
-
-max_team_size.
-
-
---------------------------------------------------
-LANDING PAGE
---------------------------------------------------
-
-Public
-
-No login required.
-
-Contains
-
-Hero
-
-Features
-
-Roles
-
-Trending Events
-
-Statistics
-
-Footer
-
-
-Trending Events
-
-Top approved events
-
-Ordered by
-
-Highest registrations.
-
-
-Statistics
-
-Real-time data.
-
-Animated counters.
-
-Includes
-
-- Clubs
-- Events
-- Registrations
-- Venues
-
-
---------------------------------------------------
-DASHBOARDS
---------------------------------------------------
-
-Student Dashboard
-
-- Upcoming events
-- Trending events
-- Register
-- My registrations
-
-
----------------------------------------
-
-Club Manager Dashboard
-
-- Overview
-- Create Event
-- My Events
-- Registrations
-- Export CSV
-
-
----------------------------------------
-
-Admin Dashboard
-
-- Pending Events
-- Approved Events
-- Rejected Events
-- Search Clubs
-- Approve
-- Reject
-- Analytics
-
-
---------------------------------------------------
-IMPORTANT PROJECT RULES
---------------------------------------------------
-
-Never modify authentication flow.
-
-Never modify routing.
-
-Never modify Supabase schema.
-
-Never rename database columns.
-
-Never change JSON structure.
-
-Never modify registration workflow.
-
-Never remove existing features.
-
-Never break approval logic.
-
-Never change access control.
-
-Never refactor working code unnecessarily.
-
-Preserve existing functionality.
-
-
---------------------------------------------------
-CODING RULES
---------------------------------------------------
-
-Before modifying any feature
-
-Understand dependencies.
-
-Only change requested UI or logic.
-
-If modifying one component
-
-Ensure
-
-Student
-
-Club Manager
-
-Admin
-
-continue working exactly as before.
-
-Do not rewrite working components.
-
-Avoid unnecessary refactoring.
-
-Backward compatibility is mandatory.
-
-
---------------------------------------------------
-PROJECT GOAL
---------------------------------------------------
-
-CampusHub should feel like a modern SaaS product while providing a complete college event management platform with secure role-based access, scalable architecture, and a polished user experience.
+[GitHub Repository](https://github.com/Swarna-k123/college-campus-event-tracker.git)
