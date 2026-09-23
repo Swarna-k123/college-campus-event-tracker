@@ -13,6 +13,7 @@ import type { DbAppRole } from "@/lib/db";
 import { getSupabaseErrorMessage } from "@/lib/db";
 import { dbRoleToUi } from "@/lib/roleMap";
 import type { Role } from "@/lib/roles";
+import { isPasswordValid, PASSWORD_POLICY_ERROR } from "@/lib/passwordPolicy";
 
 export type AuthUser = {
   id: string;
@@ -314,6 +315,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = useCallback(async (input: SignupInput) => {
     const email = input.email.trim().toLowerCase();
     const roleDb: DbAppRole = input.role === "manager" ? "club_manager" : "student";
+
+    // Enforce the password policy at the authentication layer as well, so
+    // weak passwords cannot bypass client-side validation by calling this
+    // function (or the underlying API) directly. Never log the password.
+    if (!isPasswordValid(input.password)) {
+      throw new Error(PASSWORD_POLICY_ERROR);
+    }
 
     let resolvedClubId: string | null = null;
 

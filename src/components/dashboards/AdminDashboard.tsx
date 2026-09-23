@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/DashboardCard";
+import { EventPosterPreview } from "@/components/EventPosterPreview";
 import type { ManagerEvent } from "@/data/managerEvents";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -110,13 +111,20 @@ const EventReviewCard = ({
   return (
     <>
       <article className="group flex flex-col rounded-2xl overflow-hidden border border-border/40 bg-background/40 shadow-soft backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow hover:border-primary/40 relative">
-        <div className="relative aspect-[16/9] overflow-hidden">
-          <img src={event.poster} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent transition-opacity duration-300 group-hover:opacity-80" />
-          <Badge variant="outline" className={cn("absolute top-3 left-3 backdrop-blur-md shadow-sm border-0", meta.cls)}>
-            {meta.label}
-          </Badge>
-        </div>
+        <EventPosterPreview
+          posterUrl={event.poster}
+          title={event.title}
+          className="relative aspect-[16/9] overflow-hidden"
+          imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          overlay={
+            <>
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent transition-opacity duration-300 group-hover:opacity-80 pointer-events-none" />
+              <Badge variant="outline" className={cn("absolute top-3 left-3 backdrop-blur-md shadow-sm border-0", meta.cls)}>
+                {meta.label}
+              </Badge>
+            </>
+          }
+        />
         <div className="flex flex-col flex-1 p-5 gap-3">
           <div>
             <h3 className="font-semibold text-lg leading-snug truncate group-hover:text-primary transition-colors">{event.title}</h3>
@@ -140,13 +148,20 @@ const EventReviewCard = ({
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="sm:max-w-[600px] bg-gradient-card border-border/60 p-0 overflow-hidden shadow-2xl backdrop-blur-3xl">
-          <div className="relative h-48 sm:h-64 w-full">
-            <img src={event.poster} alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-            <Badge variant="outline" className={cn("absolute top-4 left-4 backdrop-blur-md text-sm py-1 px-3 border-0", meta.cls)}>
-              {meta.label}
-            </Badge>
-          </div>
+          <EventPosterPreview
+            posterUrl={event.poster}
+            title={event.title}
+            className="relative h-48 sm:h-64 w-full"
+            imgClassName="h-full w-full object-cover"
+            overlay={
+              <>
+                <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                <Badge variant="outline" className={cn("absolute top-4 left-4 backdrop-blur-md text-sm py-1 px-3 border-0", meta.cls)}>
+                  {meta.label}
+                </Badge>
+              </>
+            }
+          />
           
           <div className="p-6 pt-0 space-y-6 max-h-[60vh] overflow-y-auto">
             <DialogHeader className="space-y-2 text-left">

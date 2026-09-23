@@ -8,6 +8,12 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDashboardPathForRole, useAuth } from "@/context/AuthContext";
+import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
+import {
+  isPasswordValid,
+  PASSWORD_POLICY_ERROR,
+  PASSWORDS_MISMATCH_ERROR,
+} from "@/lib/passwordPolicy";
 
 const INTERESTS = ["Technical", "Cultural", "Sports", "Hackathons", "Workshops"] as const;
 type Interest = typeof INTERESTS[number];
@@ -18,8 +24,8 @@ const schema = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(72, "Password must be under 72 characters"),
+    .max(72, "Password must be under 72 characters")
+    .refine((val) => isPasswordValid(val), { message: PASSWORD_POLICY_ERROR }),
   role: z.enum(["student", "manager"]),
 });
 
@@ -29,9 +35,11 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [clubName, setClubName] = useState("");
   const [managerAccessCode, setManagerAccessCode] = useState("");
   const [show, setShow] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [role, setRole] = useState<Role>("student");
   const [interests, setInterests] = useState<Set<Interest>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,6 +70,10 @@ const Signup = () => {
         fieldErrors.managerAccessCode = "Manager access code is required.";
       }
       setErrors(fieldErrors);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: PASSWORDS_MISMATCH_ERROR });
       return;
     }
     setErrors({});
@@ -167,7 +179,7 @@ const Signup = () => {
                   type={show ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder="Create a strong password"
                   maxLength={72}
                   className="h-11 pr-10 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
                 />
@@ -181,6 +193,33 @@ const Signup = () => {
                 </button>
               </div>
               {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+              <PasswordStrengthMeter password={password} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  maxLength={72}
+                  className="h-11 pr-10 rounded-xl bg-secondary/60 border-border/60 focus-visible:ring-primary/40"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
+                >
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-xs text-destructive">{errors.confirmPassword}</p>
+              )}
             </div>
 
             {role === "manager" && (

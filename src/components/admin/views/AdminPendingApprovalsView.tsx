@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { EventPosterPreview } from "@/components/EventPosterPreview";
 
 const getCategoryColor = (category: string) => {
   switch(category?.toLowerCase()) {
@@ -374,13 +375,13 @@ export const AdminPendingApprovalsView = () => {
                 <div key={event.id} className="flex flex-col xl:flex-row gap-6 p-4 rounded-2xl bg-[#0F111A] border border-border/20 hover:border-border/40 transition-all hover:shadow-lg">
                   
                   {/* Left: Poster */}
-                  <div className="w-full xl:w-48 h-48 rounded-xl overflow-hidden shrink-0 relative border border-border/10 shadow-inner group bg-[#151820] flex items-center justify-center">
-                    {event.poster_url ? (
-                      <img src={event.poster_url} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <CalendarClock className="w-10 h-10 text-muted-foreground/30" />
-                    )}
-                  </div>
+                  <EventPosterPreview
+                    posterUrl={event.poster_url}
+                    title={event.title}
+                    className="w-full xl:w-48 h-48 rounded-xl overflow-hidden shrink-0 relative border border-border/10 shadow-inner group bg-[#151820] flex items-center justify-center"
+                    imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    placeholder={<CalendarClock className="w-10 h-10 text-muted-foreground/30" />}
+                  />
                   
                   {/* Middle: Details */}
                   <div className="flex-1 flex flex-col py-2 min-w-[250px]">
@@ -562,20 +563,24 @@ export const AdminPendingApprovalsView = () => {
         <DialogContent className="sm:max-w-[700px] bg-[#0F111A] border border-border/20 p-0 overflow-hidden text-white gap-0">
           {viewDetailsTarget && (
             <>
-              <div className="relative h-48 sm:h-64 w-full bg-[#151820] flex items-center justify-center shrink-0 border-b border-border/10">
-                {viewDetailsTarget.poster_url ? (
-                  <img src={viewDetailsTarget.poster_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <CalendarClock className="w-12 h-12 text-muted-foreground/30" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F111A] via-[#0F111A]/40 to-transparent" />
-                <div className="absolute bottom-4 left-6 pr-6">
-                   <span className={cn("px-2.5 py-1 rounded text-[11px] font-semibold tracking-wide uppercase border mb-3 inline-block", getCategoryColor(viewDetailsTarget.category))}>
-                    {viewDetailsTarget.category}
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{viewDetailsTarget.title}</h2>
-                </div>
-              </div>
+              <EventPosterPreview
+                posterUrl={viewDetailsTarget.poster_url}
+                title={viewDetailsTarget.title}
+                className="relative h-48 sm:h-64 w-full bg-[#151820] flex items-center justify-center shrink-0 border-b border-border/10"
+                imgClassName="h-full w-full object-cover"
+                placeholder={<CalendarClock className="w-12 h-12 text-muted-foreground/30" />}
+                overlay={
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F111A] via-[#0F111A]/40 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-4 left-6 pr-6">
+                      <span className={cn("px-2.5 py-1 rounded text-[11px] font-semibold tracking-wide uppercase border mb-3 inline-block", getCategoryColor(viewDetailsTarget.category))}>
+                        {viewDetailsTarget.category}
+                      </span>
+                      <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{viewDetailsTarget.title}</h2>
+                    </div>
+                  </>
+                }
+              />
               
               <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <div className="space-y-2">

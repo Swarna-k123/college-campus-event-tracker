@@ -7,6 +7,7 @@ import {
   Calendar as CalIcon, MapPin, Award, FileText, Check, LayoutDashboard, AlertCircle
 } from "lucide-react";
 import { loadAllEventsForAdmin } from "@/components/dashboards/AdminDashboard";
+import { EventPosterPreview } from "@/components/EventPosterPreview";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
@@ -216,9 +217,12 @@ export const AdminDashboardView = () => {
                 <div className="space-y-1">
                   {pending.slice(0, 5).map((event) => (
                     <div key={event.id} className="group flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-[16px] hover:bg-[#1A1D24] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border border-transparent hover:border-border/30">
-                      <div className="w-16 h-16 rounded-xl bg-[#0A0C10] overflow-hidden shrink-0 shadow-inner border border-border/10">
-                        <img src={event.poster} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      </div>
+                      <EventPosterPreview
+                        posterUrl={event.poster}
+                        title={event.title}
+                        className="w-16 h-16 rounded-xl bg-[#0A0C10] overflow-hidden shrink-0 shadow-inner border border-border/10"
+                        imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-base">{event.title}</h4>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1.5">

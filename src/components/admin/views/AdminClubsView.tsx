@@ -31,16 +31,24 @@ import {
 
 // ── types ─────────────────────────────────────────────────────────────────
 
+type ManagerInfo = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 type ClubData = {
   id: string;
   name: string;
   club_logo_url: string | null;
   created_at: string | null;
   is_active: boolean | null;
-  // manager
+  // manager (kept for the compact card / search — represents the first manager)
   managerId: string | null;
   managerName: string;
   managerEmail: string;
+  // all managers assigned to this club
+  managers: ManagerInfo[];
   // event counts
   totalEventCount: number;
   approvedEventCount: number;
@@ -57,8 +65,10 @@ type DrawerEvent = {
   venue: string;
 };
 
+type ManagerDetail = ManagerInfo & { avatarUrl: string | null };
+
 type ClubDetails = {
-  managerAvatar: string | null;
+  managers: ManagerDetail[];
   upcomingCount: number;
   completedCount: number;
   recentEvents: DrawerEvent[];
@@ -126,9 +136,14 @@ export const AdminClubsView = () => {
         .eq("role", "club_manager")
         .in("club_id", clubIds);
 
-      const managerMap = new Map<string, { id: string; name: string; email: string }>();
+      // A club can have MULTIPLE managers (multiple profiles with role = "club_manager"
+      // and the same club_id), so collect all of them per club instead of keeping only one.
+      const managerMap = new Map<string, ManagerInfo[]>();
       (managerRows || []).forEach((m: any) => {
-        if (m.club_id) managerMap.set(m.club_id, { id: m.id, name: m.full_name, email: m.email });
+        if (!m.club_id) return;
+        const list = managerMap.get(m.club_id) ?? [];
+        list.push({ id: m.id, name: m.full_name, email: m.email });
+        managerMap.set(m.club_id, list);
       });
 
       // --- All events per club (fetch all statuses) ---
@@ -170,21 +185,25 @@ export const AdminClubsView = () => {
         });
       }
 
-      return clubRows.map((club: any) => ({
-        id:                club.id,
-        name:              club.name,
-        club_logo_url:     club.club_logo_url  ?? null,
-        created_at:        club.created_at     ?? null,
-        // is_active may or may not exist; default to true (active) if absent
-        is_active:         club.is_active != null ? Boolean(club.is_active) : true,
-        managerId:         managerMap.get(club.id)?.id    ?? null,
-        managerName:       managerMap.get(club.id)?.name  ?? "No manager assigned",
-        managerEmail:      managerMap.get(club.id)?.email ?? "—",
-        totalEventCount:   totalCountMap.get(club.id)    ?? 0,
-        approvedEventCount:approvedCountMap.get(club.id) ?? 0,
-        pendingEventCount: pendingCountMap.get(club.id)  ?? 0,
-        totalRegistrations:regCountMap.get(club.id)      ?? 0,
-      }));
+      return clubRows.map((club: any) => {
+        const clubManagers = managerMap.get(club.id) ?? [];
+        return {
+          id:                club.id,
+          name:              club.name,
+          club_logo_url:     club.club_logo_url  ?? null,
+          created_at:        club.created_at     ?? null,
+          // is_active may or may not exist; default to true (active) if absent
+          is_active:         club.is_active != null ? Boolean(club.is_active) : true,
+          managerId:         clubManagers[0]?.id    ?? null,
+          managerName:       clubManagers[0]?.name  ?? "No manager assigned",
+          managerEmail:      clubManagers[0]?.email ?? "—",
+          managers:          clubManagers,
+          totalEventCount:   totalCountMap.get(club.id)    ?? 0,
+          approvedEventCount:approvedCountMap.get(club.id) ?? 0,
+          pendingEventCount: pendingCountMap.get(club.id)  ?? 0,
+          totalRegistrations:regCountMap.get(club.id)      ?? 0,
+        };
+      });
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -213,7 +232,7 @@ export const AdminClubsView = () => {
     const q = searchQuery.toLowerCase();
     if (q &&
         !c.name.toLowerCase().includes(q) &&
-        !c.managerName.toLowerCase().includes(q))
+        !c.managers.some((m) => m.name.toLowerCase().includes(q)))
       return false;
     if (statusFilter === "active"   && c.is_active === false) return false;
     if (statusFilter === "inactive" && c.is_active !== false) return false;
@@ -568,19 +587,24 @@ const ClubDetailsDrawer = ({
       );
       const recentEvents = allEvents.slice(0, 5);
 
-      // Manager avatar from profiles
-      let managerAvatar: string | null = null;
-      if (club?.managerId) {
+      // Avatars for ALL managers assigned to this club (a club can have more than one manager)
+      const clubManagers = club?.managers ?? [];
+      const managerIds = clubManagers.map((m) => m.id);
+      const avatarMap = new Map<string, string | null>();
+      if (managerIds.length) {
         const { data: mp } = await supabase
           .from("profiles")
-          .select("avatar_url")
-          .eq("id", club.managerId)
-          .maybeSingle();
-        managerAvatar = (mp as any)?.avatar_url ?? null;
+          .select("id, avatar_url")
+          .in("id", managerIds);
+        (mp || []).forEach((row: any) => avatarMap.set(row.id, row.avatar_url ?? null));
       }
+      const managers: ManagerDetail[] = clubManagers.map((m) => ({
+        ...m,
+        avatarUrl: avatarMap.get(m.id) ?? null,
+      }));
 
       return {
-        managerAvatar,
+        managers,
         upcomingCount: upcomingEvents.length,
         completedCount: completedEvents.length,
         recentEvents,
@@ -661,29 +685,48 @@ const ClubDetailsDrawer = ({
 
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-              {/* Club Manager */}
+              {/* Club Manager(s) */}
               <section>
                 <SectionLabel icon={User} label="Club Manager" />
-                <div className="bg-[#0F111A] border border-border/15 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 shrink-0">
-                    {details?.managerAvatar ? (
-                      <img src={details.managerAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
+                {detailsLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-[76px] bg-[#0F111A] rounded-xl animate-pulse border border-border/10" />
+                    ))}
+                  </div>
+                ) : details && details.managers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {details.managers.map((manager) => (
                       <div
-                        className="w-full h-full flex items-center justify-center text-white font-bold text-sm"
-                        style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})` }}
+                        key={manager.id}
+                        className="bg-[#0F111A] border border-border/15 rounded-xl p-4 flex items-center gap-4 min-w-0"
                       >
-                        {getInitials(club.managerName)}
+                        <div className="w-11 h-11 rounded-full overflow-hidden border border-white/10 shrink-0">
+                          {manager.avatarUrl ? (
+                            <img src={manager.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div
+                              className="w-full h-full flex items-center justify-center text-white font-bold text-sm"
+                              style={{ background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})` }}
+                            >
+                              {getInitials(manager.name)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-semibold text-sm truncate">{manager.name}</p>
+                          <p className="text-muted-foreground text-xs flex items-center gap-1.5 mt-0.5 truncate">
+                            <Mail className="w-3 h-3 shrink-0" /> {manager.email}
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">{club.managerName}</p>
-                    <p className="text-muted-foreground text-xs flex items-center gap-1.5 mt-0.5 truncate">
-                      <Mail className="w-3 h-3 shrink-0" /> {club.managerEmail}
-                    </p>
+                ) : (
+                  <div className="bg-[#0F111A] border border-border/15 rounded-xl p-4 text-sm text-muted-foreground">
+                    No managers assigned to this club.
                   </div>
-                </div>
+                )}
               </section>
 
               {/* Statistics */}
